@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -159,7 +159,7 @@ const ServiceMarketplace = () => {
                   <div className="w-full h-32 rounded-md bg-muted flex items-center justify-center overflow-hidden">
                     {hasImage ? (
                       <img
-                        src={service.images[0]}
+                        src={service.images?.[0] || ''}
                         alt={service.name}
                         className="w-full h-full object-cover"
                       />

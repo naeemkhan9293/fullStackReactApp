@@ -1,28 +1,28 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 export const baseApi = createApi({
-  reducerPath: 'api',
+  reducerPath: "api",
   baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-    credentials: 'include', // Important for cookies
+    baseUrl: import.meta.env.VITE_API_URL,
+    credentials: "include", // Important for cookies
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     prepareHeaders: (headers) => {
       // Get token from localStorage
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
 
       // Log the token for debugging
-      console.log('Token in prepareHeaders:', token);
+      console.log("Token in prepareHeaders:", token);
 
       // Add Authorization header if token exists
       if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
+        headers.set("Authorization", `Bearer ${token}`);
       }
 
       return headers;
     },
   }),
   endpoints: () => ({}),
-  tagTypes: ['Service', 'Booking', 'User', 'Review'],
-})
+  tagTypes: ["Service", "Booking", "User", "Review"],
+});

@@ -6,7 +6,7 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
+  // CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -18,7 +18,7 @@ import { selectCurrentUser } from "@/store/slices/authSlice";
 import { useUpdateProfileMutation } from "@/store/api/authApi";
 import { uploadAvatar, selectUploadState } from "@/store/slices/uploadSlice";
 import { toast } from "sonner";
-import { Camera, Loader2, Upload } from "lucide-react";
+import { Camera, Loader2 } from "lucide-react";
 
 const Profile = () => {
   // Get user data from Redux store

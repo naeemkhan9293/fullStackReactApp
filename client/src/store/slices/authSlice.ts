@@ -4,6 +4,7 @@ import { authApi } from '../api/authApi';
 
 export interface User {
   _id: string;
+  id?: string; // Adding id as an alias for _id for compatibility
   name: string;
   email: string;
   role: 'customer' | 'provider' | 'admin';
@@ -45,7 +46,15 @@ const authSlice = createSlice({
       localStorage.setItem('token', token);
     },
     setUser: (state, action: PayloadAction<User>) => {
-      state.user = action.payload;
+      // Create a new object with id set as an alias for _id for compatibility
+      if (action.payload) {
+        state.user = {
+          ...action.payload,
+          id: action.payload._id
+        };
+      } else {
+        state.user = null;
+      }
     },
     clearCredentials: (state) => {
       state.user = null;
@@ -88,7 +97,15 @@ const authSlice = createSlice({
       .addMatcher(
         authApi.endpoints.getCurrentUser.matchFulfilled,
         (state, { payload }) => {
-          state.user = payload.data;
+          if (payload.data && payload.data._id) {
+            // Create a new object instead of modifying the existing one
+            state.user = {
+              ...payload.data,
+              id: payload.data._id
+            };
+          } else {
+            state.user = payload.data;
+          }
           state.isLoading = false;
         }
       )

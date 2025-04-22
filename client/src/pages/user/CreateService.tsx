@@ -1,10 +1,10 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Loader2, Upload, X, Image as ImageIcon } from "lucide-react";
+import { Loader2, X, Image as ImageIcon } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -84,6 +84,7 @@ const CreateService = () => {
     }
 
     // Upload the image
+    // @ts-ignore - Type issue with the thunk action
     dispatch(uploadServiceImage(file));
   };
 
@@ -163,7 +164,7 @@ const CreateService = () => {
       };
 
       // Call the API
-      const result = await createService(serviceData).unwrap();
+      await createService(serviceData).unwrap();
 
       // Show success message
       toast.success("Service created successfully", {

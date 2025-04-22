@@ -1,20 +1,27 @@
-import React, { useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { toast } from "sonner";
-import { Loader2, Calendar, Clock, MapPin, FileText, User, Phone, Mail, ArrowLeft } from "lucide-react";
+import { Loader2, Calendar, Clock, MapPin, FileText, User, Phone, Mail, ArrowLeft, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import AccessDenied from "@/components/AccessDenied";
 import { useGetBookingQuery, useUpdateBookingStatusMutation } from "@/store/api/bookingApi";
+import { RootState } from "@/store/store";
 
 const BookingDetails = () => {
   const { id = "" } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  // No need for navigate in this component
 
-  // State for cancel dialog
+  // State for dialogs
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+
+  // Get user from Redux store
+  const { user } = useSelector((state: RootState) => state.auth);
+  const isProvider = user?.role === "provider" || user?.role === "admin";
 
   // Fetch booking details
   const { data: bookingData, isLoading, isError, error, refetch } = useGetBookingQuery(id, {
@@ -39,6 +46,21 @@ const BookingDetails = () => {
       setCancelDialogOpen(false);
     } catch (error: any) {
       toast.error(error.data?.error || "Failed to cancel booking");
+    }
+  };
+
+  // Handle booking acceptance
+  const handleAcceptBooking = async () => {
+    try {
+      await updateBookingStatus({
+        id,
+        status: { status: 'confirmed' }
+      }).unwrap();
+
+      toast.success("Booking accepted successfully");
+      setAcceptDialogOpen(false);
+    } catch (error: any) {
+      toast.error(error.data?.error || "Failed to accept booking");
     }
   };
 
@@ -129,6 +151,9 @@ const BookingDetails = () => {
   // Check if booking can be cancelled
   const canCancel = booking.status === "pending" || booking.status === "confirmed";
 
+  // Check if booking can be accepted (only pending bookings can be accepted by providers)
+  const canAccept = isProvider && booking.status === "pending";
+
   // Check if booking is upcoming
   const isUpcoming = booking.status === "pending" || booking.status === "confirmed";
 
@@ -209,22 +234,44 @@ const BookingDetails = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap gap-3">
-                  {canCancel && (
-                    <Button
-                      variant="outline"
-                      className="border-red-200 text-red-600 hover:bg-red-50"
-                      onClick={() => setCancelDialogOpen(true)}
-                    >
-                      Cancel Booking
-                    </Button>
+                  {/* Provider-specific actions */}
+                  {isProvider && (
+                    <>
+                      {canAccept && (
+                        <Button
+                          variant="default"
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => setAcceptDialogOpen(true)}
+                        >
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Accept Booking
+                        </Button>
+                      )}
+                    </>
                   )}
 
-                  {booking.status === "confirmed" && (
-                    <Button variant="outline">
-                      Request Reschedule
-                    </Button>
+                  {/* Customer-specific actions */}
+                  {!isProvider && (
+                    <>
+                      {canCancel && (
+                        <Button
+                          variant="outline"
+                          className="border-red-200 text-red-600 hover:bg-red-50"
+                          onClick={() => setCancelDialogOpen(true)}
+                        >
+                          Cancel Booking
+                        </Button>
+                      )}
+
+                      {booking.status === "confirmed" && (
+                        <Button variant="outline">
+                          Request Reschedule
+                        </Button>
+                      )}
+                    </>
                   )}
 
+                  {/* Common actions */}
                   <Button variant="outline" asChild>
                     <Link to={`/marketplace/service/${typeof booking.service === 'object' ? booking.service._id : booking.service}`}>
                       View Service
@@ -244,20 +291,12 @@ const BookingDetails = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3 mb-4">
-                {provider?.avatar ? (
-                  <img
-                    src={provider.avatar}
-                    alt={provider.name}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-6 w-6 text-primary" />
-                  </div>
-                )}
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="h-6 w-6 text-primary" />
+                </div>
                 <div>
                   <p className="font-medium">{providerName}</p>
-                  <p className="text-sm text-muted-foreground capitalize">{provider?.role || 'Provider'}</p>
+                  <p className="text-sm text-muted-foreground capitalize">Provider</p>
                 </div>
               </div>
 
@@ -309,6 +348,30 @@ const BookingDetails = () => {
             >
               {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Yes, Cancel Booking
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Accept Booking Dialog */}
+      <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Accept Booking</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to accept this booking? This will confirm the appointment with the customer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAcceptDialogOpen(false)}>Cancel</Button>
+            <Button
+              variant="default"
+              onClick={handleAcceptBooking}
+              disabled={isUpdating}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Yes, Accept Booking
             </Button>
           </DialogFooter>
         </DialogContent>

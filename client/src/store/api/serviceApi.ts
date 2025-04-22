@@ -16,7 +16,18 @@ export interface CreateServiceRequest {
 export interface Service {
   _id: string;
   name: string;
-  provider: string;
+  provider: string | {
+    _id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    avatar?: string;
+    role?: string;
+    bio?: string;
+    createdAt?: string;
+    serviceCount?: number;
+    rating?: number;
+  };
   category: string;
   description: string;
   basePrice: number;
@@ -26,6 +37,7 @@ export interface Service {
     price: number;
     _id: string;
   }[];
+  availableTimeSlots?: string[];
   images?: string[];
   icon?: string;
   rating: number;
