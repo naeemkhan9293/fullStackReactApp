@@ -4,6 +4,8 @@ import { router as serviceRoutes } from './services';
 import { router as bookingRoutes } from './bookings';
 import { router as reviewRoutes } from './reviews';
 import { router as uploadRoutes } from './upload';
+import { router as dashboardRoutes } from './dashboard';
+import savedServicesRoutes from './savedServices';
 
 const router = express.Router();
 
@@ -18,5 +20,7 @@ router.use('/services', serviceRoutes);
 router.use('/bookings', bookingRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/upload', uploadRoutes);
+router.use('/dashboard', dashboardRoutes);
+router.use('/saved-services', savedServicesRoutes);
 
 export { router };

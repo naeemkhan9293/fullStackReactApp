@@ -6,7 +6,7 @@ import MyBookings from "@/pages/user/MyBookings";
 import BookingDetails from "@/pages/user/BookingDetails";
 import CreateService from "@/pages/user/CreateService";
 import History from "@/pages/user/History";
-import SavedServices from "@/pages/user/SavedServices";
+import SavedServicesPage from "@/pages/user/SavedServicesPage";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 export const userRoutes = [
@@ -24,7 +24,7 @@ export const userRoutes = [
           { path: "booking/:id", element: <BookingDetails /> },
           { path: "create-service", element: <CreateService /> },
           { path: "history", element: <History /> },
-          { path: "saved", element: <SavedServices /> },
+          { path: "saved", element: <SavedServicesPage /> },
         ],
       },
     ],

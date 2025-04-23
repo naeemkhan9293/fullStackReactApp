@@ -1,27 +1,35 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarClock, Clock, Star, History } from "lucide-react";
+import { CalendarClock, Clock, Star, History, Loader2 } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+import {
+  useGetDashboardStatsQuery,
+  useGetUpcomingServicesQuery,
+  useGetRecentBookingsQuery
+} from "@/store/api/dashboardApi";
 
 const ConsumerDashboard = () => {
-  // Mock data for consumer dashboard
-  const userStats = {
-    activeBookings: 3,
-    upcomingServices: 2,
-    completedServices: 8,
-    savedServices: 5,
+  // Fetch dashboard stats
+  const { data: statsData, isLoading: isStatsLoading } = useGetDashboardStatsQuery();
+
+  // Fetch upcoming services
+  const { data: upcomingServicesData, isLoading: isUpcomingServicesLoading } = useGetUpcomingServicesQuery();
+
+  // Fetch recent bookings
+  const { data: recentBookingsData, isLoading: isRecentBookingsLoading } = useGetRecentBookingsQuery();
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return format(date, "EEEE, h:mm a");
   };
 
-  const upcomingServices = [
-    { id: 1, service: "Home Cleaning", provider: "CleanPro Services", date: "Tomorrow, 10:00 AM", amount: "$75" },
-    { id: 2, service: "Lawn Mowing", provider: "Green Thumb Landscaping", date: "Friday, 2:00 PM", amount: "$45" },
-  ];
-
-  const recentBookings = [
-    { id: 1, service: "Plumbing Repair", provider: "Quick Fix Plumbing", status: "completed", date: "3 days ago", amount: "$120" },
-    { id: 2, service: "Furniture Assembly", provider: "Assembly Experts", status: "completed", date: "1 week ago", amount: "$85" },
-    { id: 3, service: "Computer Repair", provider: "Tech Wizards", status: "cancelled", date: "2 weeks ago", amount: "$60" },
-  ];
+  // Format relative time (e.g., "3 days ago")
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return formatDistanceToNow(date, { addSuffix: true });
+  };
 
   const recommendedServices = [
     { id: 1, name: "Home Cleaning", icon: "🧹", provider: "CleanPro Services", price: "$75", rating: 4.8 },
@@ -45,7 +53,13 @@ const ConsumerDashboard = () => {
           <CardContent>
             <div className="flex items-center">
               <CalendarClock className="h-5 w-5 text-primary mr-2" />
-              <div className="text-2xl font-bold">{userStats.activeBookings}</div>
+              <div className="text-2xl font-bold">
+                {isStatsLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  statsData?.data.activeBookings || 0
+                )}
+              </div>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               <Link to="/user/my-bookings" className="text-primary hover:underline">View bookings</Link>
@@ -59,7 +73,13 @@ const ConsumerDashboard = () => {
           <CardContent>
             <div className="flex items-center">
               <Clock className="h-5 w-5 text-primary mr-2" />
-              <div className="text-2xl font-bold">{userStats.upcomingServices}</div>
+              <div className="text-2xl font-bold">
+                {isStatsLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  statsData?.data.upcomingServices || 0
+                )}
+              </div>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               <Link to="/user/my-bookings" className="text-primary hover:underline">View schedule</Link>
@@ -73,7 +93,13 @@ const ConsumerDashboard = () => {
           <CardContent>
             <div className="flex items-center">
               <History className="h-5 w-5 text-primary mr-2" />
-              <div className="text-2xl font-bold">{userStats.completedServices}</div>
+              <div className="text-2xl font-bold">
+                {isStatsLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  statsData?.data.completedServices || 0
+                )}
+              </div>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               <Link to="/user/history" className="text-primary hover:underline">View history</Link>
@@ -87,7 +113,13 @@ const ConsumerDashboard = () => {
           <CardContent>
             <div className="flex items-center">
               <Star className="h-5 w-5 text-primary mr-2" />
-              <div className="text-2xl font-bold">{userStats.savedServices}</div>
+              <div className="text-2xl font-bold">
+                {isStatsLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  statsData?.data.savedServices || 0
+                )}
+              </div>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               <Link to="/user/saved" className="text-primary hover:underline">View saved</Link>
@@ -105,19 +137,23 @@ const ConsumerDashboard = () => {
               <CardDescription>Services scheduled for the next few days</CardDescription>
             </CardHeader>
             <CardContent>
-              {upcomingServices.length > 0 ? (
+              {isUpcomingServicesLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : upcomingServicesData?.data.length ? (
                 <div className="space-y-4">
-                  {upcomingServices.map((booking) => (
-                    <div key={booking.id} className="flex justify-between items-center p-4 bg-muted rounded-md">
+                  {upcomingServicesData.data.map((booking) => (
+                    <div key={booking._id} className="flex justify-between items-center p-4 bg-muted rounded-md">
                       <div>
-                        <p className="font-medium">{booking.service}</p>
-                        <p className="text-sm text-muted-foreground">Provider: {booking.provider}</p>
-                        <p className="text-sm font-medium text-primary">{booking.date}</p>
+                        <p className="font-medium">{booking.serviceName}</p>
+                        <p className="text-sm text-muted-foreground">Provider: {booking.providerName}</p>
+                        <p className="text-sm font-medium text-primary">{formatDate(booking.date)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold">{booking.amount}</p>
-                        <Button variant="outline" size="sm" className="mt-2">
-                          Reschedule
+                        <p className="font-bold">${booking.price}</p>
+                        <Button variant="outline" size="sm" className="mt-2" asChild>
+                          <Link to={`/user/booking/${booking._id}`}>View Details</Link>
                         </Button>
                       </div>
                     </div>
@@ -148,33 +184,43 @@ const ConsumerDashboard = () => {
               <CardDescription>Your recent service bookings</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentBookings.map((booking) => (
-                  <div key={booking.id} className="flex flex-col gap-1">
-                    <div className="flex justify-between">
-                      <p className="font-medium">{booking.service}</p>
-                      <p className="font-bold">{booking.amount}</p>
+              {isRecentBookingsLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentBookingsData?.data.map((booking) => (
+                    <div key={booking._id} className="flex flex-col gap-1">
+                      <div className="flex justify-between">
+                        <p className="font-medium">{booking.serviceName}</p>
+                        <p className="font-bold">${booking.price}</p>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{booking.providerName}</p>
+                      <div className="flex justify-between items-center">
+                        <p className="text-xs text-muted-foreground">{formatRelativeTime(booking.createdAt)}</p>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          booking.status === "completed"
+                            ? "bg-green-100 text-green-800"
+                            : booking.status === "cancelled"
+                              ? "bg-red-100 text-red-800"
+                              : booking.status === "confirmed"
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-yellow-100 text-yellow-800"
+                        }`}>
+                          {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                        </span>
+                      </div>
+                      {booking.status === "completed" && (
+                        <Button variant="ghost" size="sm" className="mt-1 h-8" asChild>
+                          <Link to={`/marketplace/service/${booking._id}`}>Leave Review</Link>
+                        </Button>
+                      )}
+                      <div className="border-t my-2"></div>
                     </div>
-                    <p className="text-sm text-muted-foreground">{booking.provider}</p>
-                    <div className="flex justify-between items-center">
-                      <p className="text-xs text-muted-foreground">{booking.date}</p>
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        booking.status === "completed" 
-                          ? "bg-green-100 text-green-800" 
-                          : "bg-red-100 text-red-800"
-                      }`}>
-                        {booking.status === "completed" ? "Completed" : "Cancelled"}
-                      </span>
-                    </div>
-                    {booking.status === "completed" && (
-                      <Button variant="ghost" size="sm" className="mt-1 h-8">
-                        Leave Review
-                      </Button>
-                    )}
-                    <div className="border-t my-2"></div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
               <div className="mt-4 text-center">
                 <Button variant="outline" asChild>
                   <Link to="/user/history">View Booking History</Link>

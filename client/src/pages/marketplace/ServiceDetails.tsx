@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { RootState } from "@/store/store";
 import { useGetServiceByIdQuery } from "@/store/api/serviceApi";
 import { useGetReviewsQuery, useCreateReviewMutation, useDeleteReviewMutation } from "@/store/api/reviewApi";
+import { useGetSavedServicesQuery, useSaveServiceMutation, useRemoveSavedServiceMutation } from "@/store/api/savedServicesApi";
 
 const ServiceDetails = () => {
   const { id = "" } = useParams<{ id: string }>();
@@ -26,12 +27,23 @@ const ServiceDetails = () => {
   const [reviewRating, setReviewRating] = useState<number>(5);
   const [reviewComment, setReviewComment] = useState<string>("");
   const [reviewDialogOpen, setReviewDialogOpen] = useState<boolean>(false);
+  const [isSaved, setIsSaved] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   // Fetch service details
   const { data: serviceData, isLoading: isServiceLoading, isError: isServiceError } = useGetServiceByIdQuery(id);
 
   // Fetch reviews for this service
   const { data: reviewsData, isLoading: isReviewsLoading, isError: isReviewsError } = useGetReviewsQuery(id);
+
+  // Fetch saved services
+  const { data: savedServicesData, isLoading: isSavedServicesLoading } = useGetSavedServicesQuery(undefined, {
+    skip: !user,
+  });
+
+  // Save/remove service mutations
+  const [saveService] = useSaveServiceMutation();
+  const [removeSavedService] = useRemoveSavedServiceMutation();
 
   // Mutations for creating and deleting reviews
   const [createReview, { isLoading: isCreatingReview }] = useCreateReviewMutation();
@@ -77,8 +89,41 @@ const ServiceDetails = () => {
     }
   };
 
+  // Check if service is saved
+  useEffect(() => {
+    if (savedServicesData && id) {
+      const isSavedService = savedServicesData.data.some(service => service.serviceId === id);
+      setIsSaved(isSavedService);
+    }
+  }, [savedServicesData, id]);
+
+  // Handle save/unsave service
+  const handleSaveService = async () => {
+    if (!user) {
+      toast.error("Please log in to save services");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      if (isSaved) {
+        await removeSavedService(id).unwrap();
+        setIsSaved(false);
+        toast.success("Service removed from saved list");
+      } else {
+        await saveService(id).unwrap();
+        setIsSaved(true);
+        toast.success("Service saved successfully");
+      }
+    } catch (error: any) {
+      toast.error(error.data?.error || "Failed to update saved services");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Loading state
-  if (isServiceLoading || isReviewsLoading) {
+  if (isServiceLoading || isReviewsLoading || (user && isSavedServicesLoading)) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
@@ -194,9 +239,18 @@ const ServiceDetails = () => {
                 )}
 
                 {user && !isServiceProvider && (
-                  <Button size="lg" variant="outline">
-                    <Heart className="mr-2 h-4 w-4" />
-                    Save
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={handleSaveService}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Heart className={`mr-2 h-4 w-4 ${isSaved ? 'fill-red-500 text-red-500' : ''}`} />
+                    )}
+                    {isSaved ? 'Saved' : 'Save'}
                   </Button>
                 )}
 
