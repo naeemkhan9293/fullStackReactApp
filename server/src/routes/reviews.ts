@@ -12,11 +12,11 @@ import { checkAccess } from '../middleware/accessControl';
 const router = express.Router();
 
 router.route('/')
-  .get(checkAccess('review', 'readAny'), getReviews)
+  .get(getReviews) // Public access - no middleware
   .post(protect, checkAccess('review', 'createOwn'), createReview);
 
 router.route('/:id')
-  .get(checkAccess('review', 'readAny'), getReview)
+  .get(getReview) // Public access - no middleware
   .put(protect, checkAccess('review', 'updateOwn', 'id'), updateReview)
   .delete(protect, checkAccess('review', 'deleteOwn', 'id'), deleteReview);
 

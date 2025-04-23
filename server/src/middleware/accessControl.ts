@@ -32,7 +32,6 @@ export const checkAccess = (
 
       // Get user role
       const { role } = req.user;
-      console.log(typeof action);
       // Check if action contains 'Own' and we need to verify ownership
       const isOwn = action.includes("Own");
 
@@ -121,7 +120,14 @@ async function checkOwnership(
 
       case "booking":
         const booking = await Booking.findById(resourceId);
-        return booking && booking.customer.toString() === req.user?.id;
+        if (!booking) return false;
+
+        // Check if the user is either the customer or the provider of the booking
+        const isCustomer = booking.customer.toString() === req.user?.id;
+        const isProvider = booking.provider.toString() === req.user?.id;
+
+        // Return true if the user is either the customer or the provider
+        return isCustomer || isProvider;
 
       case "providerBooking":
         const providerBooking = await Booking.findById(resourceId);

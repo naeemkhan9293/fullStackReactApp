@@ -8,22 +8,22 @@ ac.grant('customer')
   // Profile permissions
   .readOwn('profile')
   .updateOwn('profile')
-  
+
   // Service permissions
   .readAny('service')
-  
+
   // Booking permissions
   .createOwn('booking')
   .readOwn('booking')
   .updateOwn('booking')
   .deleteOwn('booking')
-  
+
   // Review permissions
   .createOwn('review')
   .readOwn('review')
   .updateOwn('review')
   .deleteOwn('review')
-  
+
   // Saved services permissions
   .createOwn('savedService')
   .readOwn('savedService')
@@ -32,16 +32,17 @@ ac.grant('customer')
 ac.grant('provider')
   // Inherit customer permissions
   .extend('customer')
-  
+
   // Service permissions
   .createOwn('service')
   .updateOwn('service')
   .deleteOwn('service')
-  
+
   // Booking permissions (as a provider)
   .readOwn('providerBooking')
   .updateOwn('providerBooking')
-  
+  .readOwn('booking') // Allow providers to read bookings they're assigned to
+
   // Dashboard permissions
   .readOwn('providerDashboard');
 
@@ -50,24 +51,24 @@ ac.grant('admin')
   .readAny('profile')
   .updateAny('profile')
   .deleteAny('profile')
-  
+
   .createAny('service')
   .readAny('service')
   .updateAny('service')
   .deleteAny('service')
-  
+
   .createAny('booking')
   .readAny('booking')
   .updateAny('booking')
   .deleteAny('booking')
-  
+
   .readAny('review')
   .updateAny('review')
   .deleteAny('review')
-  
+
   .readAny('savedService')
   .deleteAny('savedService')
-  
+
   .readAny('providerDashboard')
   .readAny('customerDashboard');
 
