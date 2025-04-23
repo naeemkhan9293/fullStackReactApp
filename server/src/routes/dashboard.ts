@@ -9,18 +9,19 @@ import {
   getProviderRecentActivity,
   getProviderPopularServices
 } from '../controllers/providerDashboard';
-import { protect, authorize } from '../middleware/auth';
+import { protect } from '../middleware/auth';
+import { checkAccess } from '../middleware/accessControl';
 
 const router = express.Router();
 
 // Customer dashboard routes
-router.get('/stats', protect, authorize('customer'), getDashboardStats);
-router.get('/upcoming-services', protect, authorize('customer'), getUpcomingServices);
-router.get('/recent-bookings', protect, authorize('customer'), getRecentBookings);
+router.get('/stats', protect, checkAccess('customerDashboard', 'readOwn'), getDashboardStats);
+router.get('/upcoming-services', protect, checkAccess('customerDashboard', 'readOwn'), getUpcomingServices);
+router.get('/recent-bookings', protect, checkAccess('customerDashboard', 'readOwn'), getRecentBookings);
 
 // Provider dashboard routes
-router.get('/provider/stats', protect, authorize('provider', 'admin'), getProviderDashboardStats);
-router.get('/provider/recent-activity', protect, authorize('provider', 'admin'), getProviderRecentActivity);
-router.get('/provider/popular-services', protect, authorize('provider', 'admin'), getProviderPopularServices);
+router.get('/provider/stats', protect, checkAccess('providerDashboard', 'readOwn'), getProviderDashboardStats);
+router.get('/provider/recent-activity', protect, checkAccess('providerDashboard', 'readOwn'), getProviderRecentActivity);
+router.get('/provider/popular-services', protect, checkAccess('providerDashboard', 'readOwn'), getProviderPopularServices);
 
 export { router };

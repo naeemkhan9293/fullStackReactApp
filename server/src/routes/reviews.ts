@@ -6,17 +6,18 @@ import {
   updateReview,
   deleteReview,
 } from '../controllers/reviews';
-import { protect, authorize } from '../middleware/auth';
+import { protect } from '../middleware/auth';
+import { checkAccess } from '../middleware/accessControl';
 
 const router = express.Router();
 
 router.route('/')
-  .get(getReviews)
-  .post(protect, authorize('customer'), createReview);
+  .get(checkAccess('review', 'readAny'), getReviews)
+  .post(protect, checkAccess('review', 'createOwn'), createReview);
 
 router.route('/:id')
-  .get(getReview)
-  .put(protect, updateReview)
-  .delete(protect, deleteReview);
+  .get(checkAccess('review', 'readAny'), getReview)
+  .put(protect, checkAccess('review', 'updateOwn', 'id'), updateReview)
+  .delete(protect, checkAccess('review', 'deleteOwn', 'id'), deleteReview);
 
 export { router };

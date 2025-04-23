@@ -7,20 +7,21 @@ import {
   deleteBooking,
   getMyBookings,
 } from '../controllers/bookings';
-import { protect, authorize } from '../middleware/auth';
+import { protect } from '../middleware/auth';
+import { checkAccess } from '../middleware/accessControl';
 
 const router = express.Router();
 
 router.route('/')
-  .get(protect, authorize('admin'), getBookings)
-  .post(protect, authorize('customer'), createBooking);
+  .get(protect, checkAccess('booking', 'readAny'), getBookings)
+  .post(protect, checkAccess('booking', 'createOwn'), createBooking);
 
 router.route('/me')
-  .get(protect, getMyBookings);
+  .get(protect, checkAccess('booking', 'readOwn'), getMyBookings);
 
 router.route('/:id')
-  .get(protect, getBooking)
-  .put(protect, updateBookingStatus)
-  .delete(protect, authorize('admin'), deleteBooking);
+  .get(protect, checkAccess('booking', 'readOwn', 'id'), getBooking)
+  .put(protect, checkAccess('booking', 'updateOwn', 'id'), updateBookingStatus)
+  .delete(protect, checkAccess('booking', 'deleteAny', 'id'), deleteBooking);
 
 export { router };
