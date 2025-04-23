@@ -270,6 +270,11 @@ const Profile = () => {
                   <div>
                     <h3 className="text-xl font-semibold">{userData.name}</h3>
                     <p className="text-muted-foreground">{userData.email}</p>
+                    <div className="mt-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${user?.role === 'provider' ? 'bg-blue-100 text-blue-800' : user?.role === 'admin' ? 'bg-violet-100 text-violet-800' : 'bg-green-100 text-green-800'}`}>
+                        {user?.role === 'provider' ? 'Service Provider' : user?.role === 'admin' ? 'Administrator' : 'Customer'}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div>

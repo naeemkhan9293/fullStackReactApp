@@ -1,7 +1,7 @@
 import { baseApi } from './baseApi'
 
 // Define interfaces for request and response types
-export interface CreateServiceRequest {
+export interface ServiceRequest {
   name: string;
   category: string;
   description: string;
@@ -74,10 +74,18 @@ export const serviceApi = baseApi.injectEndpoints({
       query: () => '/services/me',
       providesTags: ['Service'],
     }),
-    createService: builder.mutation<ServiceResponse, CreateServiceRequest>({
+    createService: builder.mutation<ServiceResponse, ServiceRequest>({
       query: (serviceData) => ({
         url: '/services',
         method: 'POST',
+        body: serviceData,
+      }),
+      invalidatesTags: ['Service'],
+    }),
+    updateService: builder.mutation<ServiceResponse, { id: string, serviceData: ServiceRequest }>({
+      query: ({ id, serviceData }) => ({
+        url: `/services/${id}`,
+        method: 'PUT',
         body: serviceData,
       }),
       invalidatesTags: ['Service'],
@@ -98,5 +106,6 @@ export const {
   useGetServiceByIdQuery,
   useGetUserServicesQuery,
   useCreateServiceMutation,
+  useUpdateServiceMutation,
   useUpdateServiceStatusMutation
 } = serviceApi

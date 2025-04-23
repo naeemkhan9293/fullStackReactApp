@@ -29,24 +29,14 @@ const LoginPage = () => {
     e.preventDefault();
 
     try {
-      console.log("Sending login request with:", { email, password });
-      const result = await login({ email, password }).unwrap();
-      console.log("Login successful:", result);
-
-      // Check if token was saved to localStorage
-      const savedToken = localStorage.getItem("token");
-      console.log("Token saved to localStorage:", savedToken);
+      await login({ email, password }).unwrap();
 
       toast.success("Login successful", {
         description: "You have been logged in successfully.",
       });
 
-      // Add a small delay before navigation to ensure token is properly saved
-      setTimeout(() => {
-        console.log("Navigating to:", from);
-        console.log("Token before navigation:", localStorage.getItem("token"));
-        navigate(from, { replace: true });
-      }, 500);
+      // Navigate to the intended destination
+      navigate(from, { replace: true });
     } catch (error: any) {
       console.error("Login error:", error);
       toast.error("Login failed", {

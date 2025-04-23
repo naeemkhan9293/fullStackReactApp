@@ -45,15 +45,13 @@ const SignupPage = () => {
     }
 
     try {
-      console.log('Sending registration request with:', { name, email, password, role });
-      const result = await register({
+      await register({
         name,
         email,
         password,
         role,
       }).unwrap();
 
-      console.log('Registration successful:', result);
       toast.success("Registration successful", {
         description: "Your account has been created successfully.",
       });
