@@ -42,7 +42,7 @@ export const checkAccess = (
         // If the resource ID doesn't match the user ID (for profile) or doesn't belong to the user,
         // then we need to check if they have 'Any' permission instead
         const isOwner = await checkOwnership(req, resource, resourceId);
-
+        
         if (!isOwner) {
           // Check if user has 'Any' permission instead
           const anyAction = action.replace("Own", "Any") as
