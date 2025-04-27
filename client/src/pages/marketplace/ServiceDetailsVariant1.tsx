@@ -37,10 +37,10 @@ const ServiceDetailsVariant1 = () => {
   const { data: serviceData, isLoading: isServiceLoading, isError: isServiceError } = useGetServiceByIdQuery(id);
 
   // Fetch reviews for this service
-  const { data: reviewsData, isLoading: isReviewsLoading, isError: isReviewsError } = useGetReviewsQuery(id);
+  const { data: reviewsData, isError: isReviewsError } = useGetReviewsQuery(id);
 
   // Fetch saved services
-  const { data: savedServicesData, isLoading: isSavedServicesLoading } = useGetSavedServicesQuery(undefined, {
+  const { data: savedServicesData } = useGetSavedServicesQuery(undefined, {
     skip: !user,
   });
 
@@ -70,7 +70,7 @@ const ServiceDetailsVariant1 = () => {
         rating: reviewRating,
         comment: reviewComment
       }).unwrap();
-      
+
       setReviewComment("");
       setReviewRating(5);
       setReviewDialogOpen(false);
@@ -225,7 +225,7 @@ const ServiceDetailsVariant1 = () => {
                   <p className="text-sm text-muted-foreground mb-1">Starting from</p>
                   <p className="text-3xl font-bold text-primary">{priceDisplay}</p>
                 </div>
-                
+
                 <div className="flex flex-col gap-2">
                   {/* Different actions based on user role */}
                   {isCustomer && !isServiceProvider && (
@@ -339,19 +339,19 @@ const ServiceDetailsVariant1 = () => {
                       </AvatarFallback>
                     )}
                   </Avatar>
-                  
+
                   <div className="space-y-4 flex-1">
                     <div>
                       <h3 className="text-xl font-semibold">{providerName}</h3>
                       <p className="text-muted-foreground">Service Provider</p>
                     </div>
-                    
+
                     <p className="text-muted-foreground">
                       {typeof service.provider === 'object' && service.provider.bio
                         ? service.provider.bio
                         : "This provider has not added a bio yet."}
                     </p>
-                    
+
                     {!isServiceProvider && (
                       <Button variant="outline" asChild>
                         <Link to={`/messages/new?recipient=${providerId}`}>
@@ -372,7 +372,7 @@ const ServiceDetailsVariant1 = () => {
                 <h2 className="text-2xl font-semibold">Step 3: Customer Reviews</h2>
                 <p className="text-muted-foreground">See what others are saying about this service.</p>
               </div>
-              
+
               {isCustomer && !isServiceProvider && !userReview && (
                 <Button onClick={() => setReviewDialogOpen(true)}>
                   Write a Review
@@ -411,7 +411,7 @@ const ServiceDetailsVariant1 = () => {
                             </div>
                           </div>
                         </div>
-                        
+
                         {user && (user._id === review.user._id || (user.id && user.id === review.user._id)) && (
                           <Button
                             variant="ghost"
@@ -459,7 +459,7 @@ const ServiceDetailsVariant1 = () => {
                 Share your experience with this service to help others.
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="rating">Rating</Label>
@@ -486,7 +486,7 @@ const ServiceDetailsVariant1 = () => {
                   ))}
                 </RadioGroup>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="comment">Your Review</Label>
                 <Textarea
@@ -498,7 +498,7 @@ const ServiceDetailsVariant1 = () => {
                 />
               </div>
             </div>
-            
+
             <DialogFooter>
               <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>
                 Cancel
