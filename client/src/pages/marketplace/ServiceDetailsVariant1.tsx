@@ -2,10 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
-import { Loader2, Star, Trash2, Heart, Share2, User, MapPin, Clock, Calendar } from "lucide-react";
+import { Loader2, Star, Trash2, Heart, Share2, User, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,7 +12,7 @@ import { Icons } from "@/components/ui/icons";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,  } from "@/components/ui/dialog";
 import { RootState } from "@/store/store";
 import { useGetServiceByIdQuery } from "@/store/api/serviceApi";
 import { useGetReviewsQuery, useCreateReviewMutation, useDeleteReviewMutation } from "@/store/api/reviewApi";
@@ -169,12 +168,12 @@ const ServiceDetailsVariant1 = () => {
   return (
     <div className="bg-white min-h-screen">
       {/* Full-width Hero Image */}
-      <div className="w-full h-[40vh] relative overflow-hidden bg-muted">
+      <div className="w-full h-[50vh] max-w-7xl mx-auto  relative overflow-hidden bg-muted">
         {service.images && service.images.length > 0 ? (
           <img
             src={service.images[0]}
             alt={service.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover rounded-lg object-top"
           />
         ) : service.icon && Icons[service.icon as keyof typeof Icons] ? (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-primary/5 to-primary/10">

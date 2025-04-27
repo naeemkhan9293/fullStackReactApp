@@ -27,7 +27,10 @@ ac.grant('customer')
   // Saved services permissions
   .createOwn('savedService')
   .readOwn('savedService')
-  .deleteOwn('savedService');
+  .deleteOwn('savedService')
+
+  // Customer dashboard permissions
+  .readOwn('customerDashboard');
 
 ac.grant('provider')
   // Inherit customer permissions

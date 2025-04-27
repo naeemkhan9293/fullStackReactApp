@@ -1,9 +1,12 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 
 const MarketplaceLayout = () => {
+  const { pathname } = useLocation();
   return (
     <div className="">
-      <h1 className="text-3xl font-bold mb-6">Service Marketplace</h1>
+      {pathname === "/marketplace" && (
+        <h1 className="text-3xl font-bold mb-6">Service Marketplace</h1>
+      )}
       <Outlet />
     </div>
   );
