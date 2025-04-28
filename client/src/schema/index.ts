@@ -2,3 +2,4 @@
 export * from '@/schema/service.schema';
 export * from '@/schema/bid.schema';
 export * from '@/schema/auth.schema';
+export * from '@/schema/profile.schema';

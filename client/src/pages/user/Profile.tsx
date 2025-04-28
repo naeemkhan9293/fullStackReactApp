@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { AppDispatch } from "@/store/store";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,14 +13,22 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { selectCurrentUser } from "@/store/slices/authSlice";
 import { useUpdateProfileMutation } from "@/store/api/authApi";
 import { uploadAvatar, selectUploadState } from "@/store/slices/uploadSlice";
 import { toast } from "sonner";
 import { Camera, Loader2 } from "lucide-react";
+import { profileSchema, ProfileFormValues } from "@/schema/profile.schema";
 
 const Profile = () => {
   // Get user data from Redux store
@@ -39,7 +49,19 @@ const Profile = () => {
   });
 
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState(userData);
+
+  // Initialize form with zod resolver
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      bio: "",
+      location: "",
+      website: "",
+    },
+    mode: "onChange"
+  });
 
   // Update local state when user data changes
   useEffect(() => {
@@ -53,16 +75,17 @@ const Profile = () => {
         avatar: user.avatar || "",
       };
       setUserData(updatedUserData);
-      setFormData(updatedUserData);
-    }
-  }, [user]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+      // Reset form with user data
+      form.reset({
+        name: user.name || "",
+        email: user.email || "",
+        bio: user.bio || "",
+        location: user.location || "",
+        website: user.website || "",
+      });
+    }
+  }, [user, form]);
 
   // Handle avatar file selection
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,16 +124,14 @@ const Profile = () => {
     fileInputRef.current?.click();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const onSubmit = async (data: ProfileFormValues) => {
     try {
       // Only send fields that have changed
       const changedFields: Record<string, string> = {};
-      Object.keys(formData).forEach((key) => {
-        const typedKey = key as keyof typeof formData;
-        if (formData[typedKey] !== userData[typedKey]) {
-          changedFields[key] = formData[typedKey];
+      Object.keys(data).forEach((key) => {
+        const typedKey = key as keyof typeof data;
+        if (data[typedKey] !== userData[typedKey as keyof typeof userData]) {
+          changedFields[key] = data[typedKey] as string;
         }
       });
 
@@ -123,7 +144,10 @@ const Profile = () => {
       await updateProfile(changedFields).unwrap();
 
       // Update local state
-      setUserData(formData);
+      setUserData({
+        ...userData,
+        ...data,
+      });
       setIsEditing(false);
 
       toast.success("Profile updated successfully");
@@ -158,80 +182,100 @@ const Profile = () => {
           </CardHeader>
           <CardContent>
             {isEditing ? (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
                     name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
-                  <Textarea
-                    id="bio"
-                    name="bio"
-                    value={formData.bio}
-                    onChange={handleChange}
-                    rows={4}
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      name="location"
-                      value={formData.location}
-                      onChange={handleChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="website">Website</Label>
-                    <Input
-                      id="website"
-                      name="website"
-                      value={formData.website}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2 pt-4">
-                  <Button type="submit" disabled={isUpdating}>
-                    {isUpdating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      "Save Changes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Full Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setFormData(userData);
-                      setIsEditing(false);
-                    }}
-                    disabled={isUpdating}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="bio"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bio</FormLabel>
+                        <FormControl>
+                          <Textarea rows={4} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="location"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Location</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="website"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Website</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-4">
+                    <Button type="submit" disabled={isUpdating}>
+                      {isUpdating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save Changes"
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        form.reset();
+                        setIsEditing(false);
+                      }}
+                      disabled={isUpdating}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </Form>
             ) : (
               <div className="space-y-6">
                 <div className="flex items-center gap-4">
