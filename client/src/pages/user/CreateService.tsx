@@ -1,16 +1,28 @@
-import React, { useState, useRef } from "react";
+import React, { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Loader2, X, Image as ImageIcon } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, useFieldArray } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { useCreateServiceMutation } from "@/store/api/serviceApi";
 import { uploadServiceImage, clearServiceImage, selectUploadState } from "@/store/slices/uploadSlice";
+import { serviceSchema, ServiceFormValues } from "../../schema/service.schema";
 
 const CreateService = () => {
   const navigate = useNavigate();
@@ -19,39 +31,40 @@ const CreateService = () => {
   const uploadState = useSelector(selectUploadState);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form state
-  const [serviceName, setServiceName] = useState("");
-  const [category, setCategory] = useState("");
-  const [description, setDescription] = useState("");
-  const [basePrice, setBasePrice] = useState("");
-  const [serviceOptions, setServiceOptions] = useState([
-    { name: "", description: "", price: "" }
-  ]);
-  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
-
   // Image upload state
   const isUploading = uploadState.isLoading;
   const serviceImage = uploadState.serviceImage;
   const uploadError = uploadState.error;
 
+  // Initialize form with zod resolver
+  const form = useForm<ServiceFormValues>({
+    resolver: zodResolver(serviceSchema),
+    defaultValues: {
+      name: "",
+      category: "",
+      description: "",
+      basePrice: "",
+      options: [{ name: "", description: "", price: "" }],
+      images: []
+    },
+    mode: "onChange"
+  });
+
+  // Setup field array for service options
+  const { fields, append, remove } = useFieldArray({
+    name: "options",
+    control: form.control
+  });
+
   // Add a new service option
   const addServiceOption = () => {
-    setServiceOptions([...serviceOptions, { name: "", description: "", price: "" }]);
-  };
-
-  // Update a service option
-  const updateServiceOption = (index: number, field: string, value: string) => {
-    const updatedOptions = [...serviceOptions];
-    updatedOptions[index] = { ...updatedOptions[index], [field]: value };
-    setServiceOptions(updatedOptions);
+    append({ name: "", description: "", price: "" });
   };
 
   // Remove a service option
   const removeServiceOption = (index: number) => {
-    if (serviceOptions.length > 1) {
-      const updatedOptions = [...serviceOptions];
-      updatedOptions.splice(index, 1);
-      setServiceOptions(updatedOptions);
+    if (fields.length > 1) {
+      remove(index);
     }
   };
 
@@ -95,66 +108,16 @@ const CreateService = () => {
     }
   };
 
-  // Validate form
-  const validateForm = () => {
-    const errors: { [key: string]: string } = {};
-
-    if (!serviceName.trim()) {
-      errors.serviceName = "Service name is required";
-    }
-
-    if (!category) {
-      errors.category = "Category is required";
-    }
-
-    if (!description.trim()) {
-      errors.description = "Description is required";
-    }
-
-    if (!basePrice || parseFloat(basePrice) <= 0) {
-      errors.basePrice = "Base price must be greater than 0";
-    }
-
-    // Validate service options
-    const optionErrors: string[] = [];
-    serviceOptions.forEach((option, index) => {
-      if (!option.name.trim()) {
-        optionErrors.push(`Option ${index + 1}: Name is required`);
-      }
-      if (!option.description.trim()) {
-        optionErrors.push(`Option ${index + 1}: Description is required`);
-      }
-      if (!option.price || parseFloat(option.price) <= 0) {
-        optionErrors.push(`Option ${index + 1}: Price must be greater than 0`);
-      }
-    });
-
-    if (optionErrors.length > 0) {
-      errors.options = optionErrors.join(', ');
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validate form
-    if (!validateForm()) {
-      toast.error("Please fix the errors in the form");
-      return;
-    }
-
+  const onSubmit = async (data: ServiceFormValues) => {
     try {
       // Format the data for the API
       const serviceData = {
-        name: serviceName,
-        category,
-        description,
-        basePrice: parseFloat(basePrice),
-        options: serviceOptions.map(option => ({
+        name: data.name,
+        category: data.category,
+        description: data.description,
+        basePrice: parseFloat(data.basePrice),
+        options: data.options.map((option: { name: string; description: string; price: string }) => ({
           name: option.name,
           description: option.description,
           price: parseFloat(option.price)
@@ -194,247 +157,274 @@ const CreateService = () => {
           <CardDescription>Provide information about the service you offer</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Service Image */}
-            <div className="space-y-2 mb-6">
-              <Label>Service Image (Optional)</Label>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="image/jpeg,image/png,image/jpg,image/webp"
-                className="hidden"
-              />
-
-              {serviceImage ? (
-                <div className="relative w-full h-48 rounded-md overflow-hidden border border-border">
-                  <img
-                    src={serviceImage}
-                    alt="Service preview"
-                    className="w-full h-full object-cover"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2 h-8 w-8 rounded-full"
-                    onClick={removeImage}
-                    disabled={isUploading}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div
-                  onClick={triggerFileInput}
-                  className="w-full h-48 rounded-md border-2 border-dashed border-muted-foreground/25 flex flex-col items-center justify-center cursor-pointer hover:border-muted-foreground/50 transition-colors"
-                >
-                  {isUploading ? (
-                    <div className="flex flex-col items-center">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-                      <p className="text-sm text-muted-foreground">Uploading image...</p>
-                    </div>
-                  ) : (
-                    <>
-                      <ImageIcon className="h-10 w-10 text-muted-foreground mb-2" />
-                      <p className="text-sm font-medium mb-1">Click to upload an image</p>
-                      <p className="text-xs text-muted-foreground">JPG, PNG, WebP (max 5MB)</p>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {uploadError && (
-                <p className="text-red-500 text-sm mt-1">{uploadError}</p>
-              )}
-              <p className="text-sm text-muted-foreground">A high-quality image will help your service stand out</p>
-            </div>
-
-            {/* Basic Information */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="serviceName">Service Name</Label>
-                <Input
-                  id="serviceName"
-                  placeholder="e.g., Home Cleaning, Lawn Mowing, Plumbing Repair"
-                  value={serviceName}
-                  onChange={(e) => setServiceName(e.target.value)}
-                  required
-                  className={formErrors.serviceName ? "border-red-500" : ""}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Service Image */}
+              <div className="space-y-2 mb-6">
+                <Label>Service Image (Optional)</Label>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/jpeg,image/png,image/jpg,image/webp"
+                  className="hidden"
                 />
-                {formErrors.serviceName && (
-                  <p className="text-red-500 text-sm mt-1">{formErrors.serviceName}</p>
-                )}
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select
-                  value={category}
-                  onValueChange={setCategory}
-                  required
-                >
-                  <SelectTrigger
-                    id="category"
-                    className={formErrors.category ? "border-red-500" : ""}
-                  >
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Home">Home</SelectItem>
-                    <SelectItem value="Outdoor">Outdoor</SelectItem>
-                    <SelectItem value="Education">Education</SelectItem>
-                    <SelectItem value="Pets">Pets</SelectItem>
-                    <SelectItem value="Tech">Tech</SelectItem>
-                    <SelectItem value="Health">Health</SelectItem>
-                    <SelectItem value="Beauty">Beauty</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-                {formErrors.category && (
-                  <p className="text-red-500 text-sm mt-1">{formErrors.category}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe your service in detail"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  required
-                  className={`min-h-[120px] ${formErrors.description ? "border-red-500" : ""}`}
-                />
-                {formErrors.description && (
-                  <p className="text-red-500 text-sm mt-1">{formErrors.description}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="basePrice">Starting Price ($)</Label>
-                <Input
-                  id="basePrice"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="e.g., 50"
-                  value={basePrice}
-                  onChange={(e) => setBasePrice(e.target.value)}
-                  required
-                  className={formErrors.basePrice ? "border-red-500" : ""}
-                />
-                {formErrors.basePrice ? (
-                  <p className="text-red-500 text-sm mt-1">{formErrors.basePrice}</p>
+                {serviceImage ? (
+                  <div className="relative w-full h-48 rounded-md overflow-hidden border border-border">
+                    <img
+                      src={serviceImage}
+                      alt="Service preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8 rounded-full"
+                      onClick={removeImage}
+                      disabled={isUploading}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">This is the minimum price for your service</p>
+                  <div
+                    onClick={triggerFileInput}
+                    className="w-full h-48 rounded-md border-2 border-dashed border-muted-foreground/25 flex flex-col items-center justify-center cursor-pointer hover:border-muted-foreground/50 transition-colors"
+                  >
+                    {isUploading ? (
+                      <div className="flex flex-col items-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                        <p className="text-sm text-muted-foreground">Uploading image...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <ImageIcon className="h-10 w-10 text-muted-foreground mb-2" />
+                        <p className="text-sm font-medium mb-1">Click to upload an image</p>
+                        <p className="text-xs text-muted-foreground">JPG, PNG, WebP (max 5MB)</p>
+                      </>
+                    )}
+                  </div>
                 )}
-              </div>
-            </div>
 
-            {/* Service Options */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Service Options</h3>
-                <Button type="button" variant="outline" size="sm" onClick={addServiceOption}>
-                  Add Option
-                </Button>
+                {uploadError && (
+                  <p className="text-red-500 text-sm mt-1">{uploadError}</p>
+                )}
+                <p className="text-sm text-muted-foreground">A high-quality image will help your service stand out</p>
               </div>
 
-              {serviceOptions.map((option, index) => (
-                <Card key={index}>
-                  <CardContent className="p-4 space-y-4">
-                    <div className="flex justify-between items-center">
-                      <h4 className="font-medium">Option {index + 1}</h4>
-                      {serviceOptions.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeServiceOption(index)}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor={`option-name-${index}`}>Name</Label>
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel htmlFor="name">Service Name</FormLabel>
+                      <FormControl>
                         <Input
-                          id={`option-name-${index}`}
-                          placeholder="e.g., Basic Package, Premium Service"
-                          value={option.name}
-                          onChange={(e) => updateServiceOption(index, "name", e.target.value)}
+                          id="name"
+                          placeholder="e.g., Home Cleaning, Lawn Mowing, Plumbing Repair"
+                          {...field}
                         />
-                      </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                      <div className="space-y-2">
-                        <Label htmlFor={`option-description-${index}`}>Description</Label>
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel htmlFor="category">Category</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger id="category">
+                            <SelectValue placeholder="Select a category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Home">Home</SelectItem>
+                          <SelectItem value="Outdoor">Outdoor</SelectItem>
+                          <SelectItem value="Education">Education</SelectItem>
+                          <SelectItem value="Pets">Pets</SelectItem>
+                          <SelectItem value="Tech">Tech</SelectItem>
+                          <SelectItem value="Health">Health</SelectItem>
+                          <SelectItem value="Beauty">Beauty</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel htmlFor="description">Description</FormLabel>
+                      <FormControl>
                         <Textarea
-                          id={`option-description-${index}`}
-                          placeholder="Describe what's included in this option"
-                          value={option.description}
-                          onChange={(e) => updateServiceOption(index, "description", e.target.value)}
+                          id="description"
+                          placeholder="Describe your service in detail"
+                          className="min-h-[120px]"
+                          {...field}
                         />
-                      </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                      <div className="space-y-2">
-                        <Label htmlFor={`option-price-${index}`}>Price ($)</Label>
+                <FormField
+                  control={form.control}
+                  name="basePrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel htmlFor="basePrice">Starting Price ($)</FormLabel>
+                      <FormControl>
                         <Input
-                          id={`option-price-${index}`}
+                          id="basePrice"
                           type="number"
                           min="0"
                           step="0.01"
-                          placeholder="e.g., 75"
-                          value={option.price}
-                          onChange={(e) => updateServiceOption(index, "price", e.target.value)}
+                          placeholder="e.g., 50"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        This is the minimum price for your service
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Service Options */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">Service Options</h3>
+                  <Button type="button" variant="outline" size="sm" onClick={addServiceOption}>
+                    Add Option
+                  </Button>
+                </div>
+
+                {fields.map((field, index) => (
+                  <Card key={field.id}>
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h4 className="font-medium">Option {index + 1}</h4>
+                        {fields.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeServiceOption(index)}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name={`options.${index}.name`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel htmlFor={`option-name-${index}`}>Name</FormLabel>
+                              <FormControl>
+                                <Input
+                                  id={`option-name-${index}`}
+                                  placeholder="e.g., Basic Package, Premium Service"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name={`options.${index}.description`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel htmlFor={`option-description-${index}`}>Description</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  id={`option-description-${index}`}
+                                  placeholder="Describe what's included in this option"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name={`options.${index}.price`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel htmlFor={`option-price-${index}`}>Price ($)</FormLabel>
+                              <FormControl>
+                                <Input
+                                  id={`option-price-${index}`}
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="e.g., 75"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
                         />
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            <div className="pt-4 flex justify-end gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate("/user/my-services")}
-                disabled={isLoading || isUploading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading || isUploading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : isUploading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  "Create Service"
-                )}
-              </Button>
-            </div>
-
-            {/* Display form errors */}
-            {Object.keys(formErrors).length > 0 && (
-              <div className="mt-4 p-4 border border-red-300 bg-red-50 rounded-md">
-                <h4 className="text-red-700 font-medium mb-2">Please fix the following errors:</h4>
-                <ul className="list-disc pl-5 text-red-600 text-sm">
-                  {Object.entries(formErrors).map(([field, error]) => (
-                    <li key={field}>{error}</li>
-                  ))}
-                </ul>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            )}
-          </form>
+
+              <div className="pt-4 flex justify-end gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate("/user/my-services")}
+                  disabled={isLoading || isUploading}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isLoading || isUploading || form.formState.isSubmitting}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : isUploading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    "Create Service"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
         </CardContent>
       </Card>
     </div>

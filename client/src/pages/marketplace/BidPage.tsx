@@ -1,15 +1,25 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { bidSchema, BidFormValues } from "@/schema/bid.schema";
 
 const BidPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  
+
   // Mock data - in a real app, this would come from an API
   const color = {
     id: parseInt(id || "1"),
@@ -28,18 +38,27 @@ const BidPage = () => {
     ],
   };
 
-  const [bidAmount, setBidAmount] = useState(color.currentPrice + color.minBidIncrement);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [bidPlaced, setBidPlaced] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Initialize form with zod resolver
+  const form = useForm<BidFormValues>({
+    resolver: zodResolver(bidSchema),
+    defaultValues: {
+      bidAmount: color.currentPrice + color.minBidIncrement,
+    },
+    mode: "onChange"
+  });
+
+  const bidAmount = form.watch("bidAmount");
 
   const handleBidChange = (value: number[]) => {
-    setBidAmount(value[0]);
+    form.setValue("bidAmount", value[0]);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (_data: BidFormValues) => {
     setIsSubmitting(true);
-    
+
     // Simulate API call
     setTimeout(() => {
       setIsSubmitting(false);
@@ -57,8 +76,8 @@ const BidPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div 
-            className="w-full h-32 rounded-md mb-4" 
+          <div
+            className="w-full h-32 rounded-md mb-4"
             style={{ backgroundColor: color.hex }}
           ></div>
           <p className="mb-4">
@@ -88,60 +107,69 @@ const BidPage = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div 
-              className="w-full h-48 rounded-md mb-6" 
+            <div
+              className="w-full h-48 rounded-md mb-6"
               style={{ backgroundColor: color.hex }}
             ></div>
-            
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="bidAmount">Your Bid Amount (USD)</Label>
-                <div className="flex items-center gap-4">
-                  <Input 
-                    id="bidAmount" 
-                    type="number" 
-                    min={color.currentPrice + color.minBidIncrement}
-                    step={1}
-                    value={bidAmount}
-                    onChange={(e) => setBidAmount(parseInt(e.target.value))}
-                    required
-                  />
-                  <span className="text-xl font-bold">${bidAmount}</span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Min: ${color.currentPrice + color.minBidIncrement}</span>
-                  <span>Max: ${color.currentPrice * 2}</span>
-                </div>
-                <Slider
-                  min={color.currentPrice + color.minBidIncrement}
-                  max={color.currentPrice * 2}
-                  step={1}
-                  value={[bidAmount]}
-                  onValueChange={handleBidChange}
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="bidAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Your Bid Amount (USD)</FormLabel>
+                      <div className="flex items-center gap-4">
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min={color.currentPrice + color.minBidIncrement}
+                            step={1}
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          />
+                        </FormControl>
+                        <span className="text-xl font-bold">${bidAmount}</span>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              
-              <div className="pt-4 flex gap-2">
-                <Button type="submit" disabled={isSubmitting} className="flex-1">
-                  {isSubmitting ? "Placing Bid..." : "Place Bid"}
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => navigate(`/marketplace/color/${id}`)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Min: ${color.currentPrice + color.minBidIncrement}</span>
+                    <span>Max: ${color.currentPrice * 2}</span>
+                  </div>
+                  <Slider
+                    min={color.currentPrice + color.minBidIncrement}
+                    max={color.currentPrice * 2}
+                    step={1}
+                    value={[bidAmount]}
+                    onValueChange={handleBidChange}
+                  />
+                </div>
+
+                <div className="pt-4 flex gap-2">
+                  <Button type="submit" disabled={isSubmitting} className="flex-1">
+                    {isSubmitting ? "Placing Bid..." : "Place Bid"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate(`/marketplace/color/${id}`)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </Form>
           </CardContent>
         </Card>
       </div>
-      
+
       <div className="space-y-6">
         <Card>
           <CardHeader>
@@ -161,7 +189,7 @@ const BidPage = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Bid History</CardTitle>
@@ -184,7 +212,7 @@ const BidPage = () => {
             )}
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Bidding Tips</CardTitle>
