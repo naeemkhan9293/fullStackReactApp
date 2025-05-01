@@ -36,6 +36,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
         success: false,
         error: 'Please provide an email and password',
       });
+      
     }
 
     // Check for user
