@@ -5,6 +5,9 @@ export interface DashboardStats {
   upcomingServices: number;
   completedServices: number;
   savedServices: number;
+  credits: number;
+  subscriptionType: 'none' | 'regular' | 'premium';
+  subscriptionStatus: 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid' | 'incomplete' | 'incomplete_expired' | 'none';
 }
 
 export interface DashboardStatsResponse {

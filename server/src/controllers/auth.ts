@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import User, { IUser } from '../models/User';
+import CreditTransaction from '../models/CreditTransaction';
 import jwt from 'jsonwebtoken';
 
 // @desc    Register user
@@ -9,13 +10,28 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
   try {
     const { name, email, password, role } = req.body;
 
-    // Create user
+    // Create user with initial credits based on role
+    const initialCredits = role === 'customer' ? 20 : 0; // Only customers get initial credits
+
     const user = await User.create({
       name,
       email,
       password,
       role,
+      credits: initialCredits,
+      subscriptionType: 'none',
+      subscriptionStatus: 'none',
     });
+
+    // If user is a customer, record the initial credits transaction
+    if (role === 'customer' && initialCredits > 0) {
+      await CreditTransaction.create({
+        user: user._id,
+        amount: initialCredits,
+        type: 'adjustment',
+        description: 'Initial signup credits',
+      });
+    }
 
     sendTokenResponse(user, 201, res);
   } catch (err) {
@@ -36,7 +52,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
         success: false,
         error: 'Please provide an email and password',
       });
-      
+
     }
 
     // Check for user

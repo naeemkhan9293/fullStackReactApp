@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
-import { Loader2, Calendar, Clock, MapPin, FileText, User, Phone, Mail, ArrowLeft, CheckCircle } from "lucide-react";
+import { Loader2, Calendar, Clock, MapPin, FileText, User, Phone, Mail, ArrowLeft, CheckCircle, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ const BookingDetails = () => {
   // State for dialogs
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
 
   // Get user from Redux store
   const { user } = useSelector((state: RootState) => state.auth);
@@ -61,6 +62,21 @@ const BookingDetails = () => {
       setAcceptDialogOpen(false);
     } catch (error: any) {
       toast.error(error.data?.error || "Failed to accept booking");
+    }
+  };
+
+  // Handle marking booking as complete
+  const handleCompleteBooking = async () => {
+    try {
+      await updateBookingStatus({
+        id,
+        status: { status: 'completed' }
+      }).unwrap();
+
+      toast.success("Booking marked as completed");
+      setCompleteDialogOpen(false);
+    } catch (error: any) {
+      toast.error(error.data?.error || "Failed to mark booking as completed");
     }
   };
 
@@ -154,6 +170,9 @@ const BookingDetails = () => {
   // Check if booking can be accepted (only pending bookings can be accepted by providers)
   const canAccept = isProvider && booking.status === "pending";
 
+  // Check if booking can be marked as complete (only confirmed bookings can be marked as complete by providers)
+  const canComplete = isProvider && booking.status === "confirmed";
+
   // Check if booking is upcoming
   const isUpcoming = booking.status === "pending" || booking.status === "confirmed";
 
@@ -245,6 +264,16 @@ const BookingDetails = () => {
                         >
                           <CheckCircle className="mr-2 h-4 w-4" />
                           Accept Booking
+                        </Button>
+                      )}
+                      {canComplete && (
+                        <Button
+                          variant="default"
+                          className="bg-blue-600 hover:bg-blue-700"
+                          onClick={() => setCompleteDialogOpen(true)}
+                        >
+                          <CheckSquare className="mr-2 h-4 w-4" />
+                          Mark as Complete
                         </Button>
                       )}
                     </>
@@ -372,6 +401,30 @@ const BookingDetails = () => {
             >
               {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Yes, Accept Booking
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Complete Booking Dialog */}
+      <Dialog open={completeDialogOpen} onOpenChange={setCompleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark Booking as Complete</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to mark this booking as complete? This indicates that the service has been delivered successfully.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCompleteDialogOpen(false)}>Cancel</Button>
+            <Button
+              variant="default"
+              onClick={handleCompleteBooking}
+              disabled={isUpdating}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Yes, Mark as Complete
             </Button>
           </DialogFooter>
         </DialogContent>

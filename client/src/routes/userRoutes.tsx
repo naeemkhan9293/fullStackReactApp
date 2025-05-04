@@ -8,6 +8,7 @@ import CreateService from "@/pages/user/CreateService";
 import EditService from "@/pages/user/EditService";
 import History from "@/pages/user/History";
 import SavedServicesPage from "@/pages/user/SavedServicesPage";
+import SubscriptionManagement from "@/pages/subscription/SubscriptionManagement";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 export const userRoutes = [
@@ -27,6 +28,7 @@ export const userRoutes = [
           { path: "edit-service/:id", element: <EditService /> },
           { path: "history", element: <History /> },
           { path: "saved", element: <SavedServicesPage /> },
+          { path: "subscription", element: <SubscriptionManagement /> },
         ],
       },
     ],

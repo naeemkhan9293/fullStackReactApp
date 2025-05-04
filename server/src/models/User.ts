@@ -14,6 +14,13 @@ export interface IUser extends Document {
   bio?: string;
   location?: string;
   website?: string;
+  credits: number;
+  subscriptionType: 'none' | 'regular' | 'premium';
+  subscriptionStatus: 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid' | 'incomplete' | 'incomplete_expired' | 'none';
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  trialEndsAt?: Date;
+  nextBillingDate?: Date;
   createdAt: Date;
   updatedAt: Date;
   matchPassword(enteredPassword: string): Promise<boolean>;
@@ -66,6 +73,32 @@ const UserSchema = new Schema<IUser>(
     website: {
       type: String,
       maxlength: [100, 'Website cannot be more than 100 characters'],
+    },
+    credits: {
+      type: Number,
+      default: 0,
+    },
+    subscriptionType: {
+      type: String,
+      enum: ['none', 'regular', 'premium'],
+      default: 'none',
+    },
+    subscriptionStatus: {
+      type: String,
+      enum: ['active', 'trialing', 'past_due', 'canceled', 'unpaid', 'incomplete', 'incomplete_expired', 'none'],
+      default: 'none',
+    },
+    stripeCustomerId: {
+      type: String,
+    },
+    stripeSubscriptionId: {
+      type: String,
+    },
+    trialEndsAt: {
+      type: Date,
+    },
+    nextBillingDate: {
+      type: Date,
     },
   },
   {

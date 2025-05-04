@@ -1,13 +1,14 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarClock, Clock, Star, History, Loader2 } from "lucide-react";
+import { CalendarClock, Clock, Loader2, CreditCard, Sparkles } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   useGetDashboardStatsQuery,
   useGetUpcomingServicesQuery,
   useGetRecentBookingsQuery
 } from "@/store/api/dashboardApi";
+import { useGetUserSubscriptionQuery } from "@/store/api/subscriptionApi";
 
 const ConsumerDashboard = () => {
   // Fetch dashboard stats
@@ -18,6 +19,9 @@ const ConsumerDashboard = () => {
 
   // Fetch recent bookings
   const { data: recentBookingsData, isLoading: isRecentBookingsLoading } = useGetRecentBookingsQuery();
+
+  // Fetch user subscription
+  const { data: subscriptionData, isLoading: isSubscriptionLoading } = useGetUserSubscriptionQuery();
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -88,41 +92,45 @@ const ConsumerDashboard = () => {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Completed Services</CardTitle>
+            <CardTitle className="text-sm font-medium">Available Credits</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center">
-              <History className="h-5 w-5 text-primary mr-2" />
+              <CreditCard className="h-5 w-5 text-primary mr-2" />
               <div className="text-2xl font-bold">
-                {isStatsLoading ? (
+                {isSubscriptionLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  statsData?.data.completedServices || 0
+                  subscriptionData?.data.credits || 0
                 )}
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              <Link to="/user/history" className="text-primary hover:underline">View history</Link>
+              <Link to="/user/subscription" className="text-primary hover:underline">Manage subscription</Link>
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Saved Services</CardTitle>
+            <CardTitle className="text-sm font-medium">Subscription</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center">
-              <Star className="h-5 w-5 text-primary mr-2" />
-              <div className="text-2xl font-bold">
-                {isStatsLoading ? (
+              <Sparkles className="h-5 w-5 text-primary mr-2" />
+              <div className="text-lg font-bold capitalize">
+                {isSubscriptionLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  statsData?.data.savedServices || 0
+                  subscriptionData?.data.subscriptionType === 'none' ? 'No Plan' : subscriptionData?.data.subscriptionType
                 )}
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              <Link to="/user/saved" className="text-primary hover:underline">View saved</Link>
+              {subscriptionData?.data.subscriptionType === 'none' ? (
+                <Link to="/subscription/plans" className="text-primary hover:underline">Get a subscription</Link>
+              ) : (
+                <Link to="/user/subscription" className="text-primary hover:underline">View details</Link>
+              )}
             </p>
           </CardContent>
         </Card>
@@ -271,6 +279,11 @@ const ConsumerDashboard = () => {
         <Button variant="outline" className="flex-1" asChild>
           <Link to="/user/my-bookings">Manage Bookings</Link>
         </Button>
+        {subscriptionData?.data.subscriptionType === 'none' && (
+          <Button variant="outline" className="flex-1 border-primary text-primary" asChild>
+            <Link to="/subscription/plans">Get Subscription</Link>
+          </Button>
+        )}
       </div>
     </div>
   );

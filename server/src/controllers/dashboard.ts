@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import Booking from "../models/Booking";
 import Service from "../models/Service";
 import SavedService from "../models/SavedService";
+import User from "../models/User";
 import { PopulatedBooking } from "../types/mongoose";
 import { Document } from "mongoose";
 
@@ -44,6 +45,12 @@ export const getDashboardStats = async (
       user: req.user.id,
     });
 
+    // Get user credits and subscription info
+    const user = await User.findById(req.user.id);
+    const credits = user ? user.credits : 0;
+    const subscriptionType = user ? user.subscriptionType : 'none';
+    const subscriptionStatus = user ? user.subscriptionStatus : 'none';
+
     res.status(200).json({
       success: true,
       data: {
@@ -51,6 +58,9 @@ export const getDashboardStats = async (
         upcomingServices: upcomingServicesCount,
         completedServices: completedServicesCount,
         savedServices: savedServicesCount,
+        credits,
+        subscriptionType,
+        subscriptionStatus,
       },
     });
   } catch (err) {
