@@ -1,16 +1,24 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
-import { Loader2, Check, X } from 'lucide-react';
+import { Loader2, CreditCard, Sparkles, ArrowRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RootState } from '@/store/store';
-import { useGetSubscriptionPlansQuery, useCreateCheckoutSessionMutation, useGetUserSubscriptionQuery } from '@/store/api/subscriptionApi';
+import { 
+  useGetSubscriptionPlansQuery, 
+  useCreateCheckoutSessionMutation, 
+  useGetUserSubscriptionQuery 
+} from '@/store/api/subscriptionApi';
 
-const SubscriptionPlans = () => {
+const GetCreditsPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requiredCredits = parseInt(searchParams.get('required') || '5');
+  const returnUrl = searchParams.get('returnUrl') || '/marketplace';
+  
   const { user } = useSelector((state: RootState) => state.auth);
   const [selectedPlan, setSelectedPlan] = useState<'regular' | 'premium' | null>(null);
 
@@ -56,36 +64,47 @@ const SubscriptionPlans = () => {
     );
   }
 
-  // Check if user already has an active subscription
-  const hasActiveSubscription = userSubscription?.data.subscriptionStatus === 'active' || 
-                               userSubscription?.data.subscriptionStatus === 'trialing';
-
+  // Get current user credits
+  const currentCredits = userSubscription?.data.credits || 0;
+  const hasEnoughCredits = currentCredits >= requiredCredits;
+  
   // Get plan details
   const regularPlan = plansData?.data.regular;
   const premiumPlan = plansData?.data.premium;
 
   return (
     <div className="container max-w-5xl py-8 m-auto">
-      <div className="text-center mb-12">
-        <h1 className="text-3xl font-bold mb-2">Choose Your Subscription Plan</h1>
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold mb-2">Get Credits</h1>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Select the plan that works best for you. All plans include a free trial period with no commitment.
+          You need at least {requiredCredits} credits to book a service. 
+          You currently have {currentCredits} credits.
         </p>
       </div>
 
-      {hasActiveSubscription && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8 text-center">
-          <p className="text-yellow-800">
-            You already have an active {userSubscription?.data.subscriptionType} subscription. 
-            You can manage your subscription in your account settings.
+      {hasEnoughCredits ? (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-8 text-center">
+          <div className="flex items-center justify-center mb-4">
+            <div className="bg-green-100 rounded-full p-3">
+              <Check className="h-8 w-8 text-green-600" />
+            </div>
+          </div>
+          <h2 className="text-xl font-semibold text-green-800 mb-2">You Have Enough Credits!</h2>
+          <p className="text-green-700 mb-4">
+            You have {currentCredits} credits, which is enough to book your service.
           </p>
-          <Button 
-            variant="outline" 
-            className="mt-2"
-            onClick={() => navigate('/user/subscription')}
-          >
-            Manage Subscription
+          <Button onClick={() => navigate(returnUrl)}>
+            Continue to Booking
+            <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
+        </div>
+      ) : (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-8 text-center">
+          <h2 className="text-xl font-semibold text-yellow-800 mb-2">You Need More Credits</h2>
+          <p className="text-yellow-700 mb-4">
+            You have {currentCredits} credits, but you need {requiredCredits} credits to book this service.
+            Choose a subscription plan below to get more credits.
+          </p>
         </div>
       )}
 
@@ -121,22 +140,20 @@ const SubscriptionPlans = () => {
                   <Check className="h-5 w-5 text-green-500 mr-2" />
                   <span>Access to all basic features</span>
                 </li>
-                <li className="flex items-center">
-                  <X className="h-5 w-5 text-red-500 mr-2" />
-                  <span className="text-muted-foreground">Priority support</span>
-                </li>
               </ul>
             </CardContent>
             <CardFooter>
               <Button 
                 className="w-full" 
                 onClick={() => handleSubscribe('regular')}
-                disabled={isCreatingCheckout || hasActiveSubscription || selectedPlan !== null}
+                disabled={isCreatingCheckout || selectedPlan !== null}
               >
                 {isCreatingCheckout && selectedPlan === 'regular' ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : null}
-                {hasActiveSubscription ? 'Already Subscribed' : 'Start Free Trial'}
+                ) : (
+                  <CreditCard className="mr-2 h-4 w-4" />
+                )}
+                Get {regularPlan.initialCredits} Credits Now
               </Button>
             </CardFooter>
           </Card>
@@ -186,41 +203,27 @@ const SubscriptionPlans = () => {
               <Button 
                 className="w-full" 
                 onClick={() => handleSubscribe('premium')}
-                disabled={isCreatingCheckout || hasActiveSubscription || selectedPlan !== null}
+                disabled={isCreatingCheckout || selectedPlan !== null}
               >
                 {isCreatingCheckout && selectedPlan === 'premium' ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : null}
-                {hasActiveSubscription ? 'Already Subscribed' : 'Start Free Trial'}
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4" />
+                )}
+                Get {premiumPlan.initialCredits} Credits Now
               </Button>
             </CardFooter>
           </Card>
         )}
       </div>
 
-      <div className="mt-12 text-center">
-        <h2 className="text-xl font-semibold mb-4">Frequently Asked Questions</h2>
-        <div className="max-w-3xl mx-auto space-y-4 text-left">
-          <div>
-            <h3 className="font-medium">What happens after my free trial?</h3>
-            <p className="text-muted-foreground">After your trial period ends, you'll be automatically charged for your selected plan. You can cancel anytime before the trial ends.</p>
-          </div>
-          <div>
-            <h3 className="font-medium">Can I change my plan later?</h3>
-            <p className="text-muted-foreground">Yes, you can upgrade or downgrade your plan at any time from your account settings.</p>
-          </div>
-          <div>
-            <h3 className="font-medium">How do credits work?</h3>
-            <p className="text-muted-foreground">Credits are used to book services on our platform. Each service booking requires a certain number of credits.</p>
-          </div>
-          <div>
-            <h3 className="font-medium">What payment methods do you accept?</h3>
-            <p className="text-muted-foreground">We accept all major credit cards through our secure payment processor, Stripe.</p>
-          </div>
-        </div>
+      <div className="mt-8 text-center">
+        <Button variant="outline" onClick={() => navigate(returnUrl)}>
+          Return to Previous Page
+        </Button>
       </div>
     </div>
   );
 };
 
-export default SubscriptionPlans;
+export default GetCreditsPage;

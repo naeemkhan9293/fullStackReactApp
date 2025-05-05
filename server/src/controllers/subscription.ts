@@ -11,7 +11,7 @@ const SUBSCRIPTION_PLANS = {
     name: 'Regular Subscription',
     priceId: process.env.REGUALR_USER,
     trialDays: 7,
-    initialCredits: 20,
+    initialCredits: 10, // Updated to 10 credits for trial
     monthlyCredits: 100,
     interval: 'month',
     intervalCount: 1,
@@ -20,7 +20,7 @@ const SUBSCRIPTION_PLANS = {
     name: 'Premium Subscription',
     priceId: process.env.PREMIUM_USER,
     trialDays: 10,
-    initialCredits: 40,
+    initialCredits: 20, // Updated to 20 credits for trial
     monthlyCredits: 200,
     interval: 'year',
     intervalCount: 1,

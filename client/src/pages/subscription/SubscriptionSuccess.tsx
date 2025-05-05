@@ -25,7 +25,7 @@ const SubscriptionSuccess = () => {
   const isTrialing = subscription?.subscriptionStatus === 'trialing';
 
   return (
-    <div className="container max-w-2xl py-12">
+    <div className="container max-w-2xl py-12 m-auto">
       <Card className="text-center">
         <CardHeader>
           <div className="mx-auto bg-green-100 rounded-full w-16 h-16 flex items-center justify-center mb-4">

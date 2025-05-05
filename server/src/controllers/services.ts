@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import Service from '../models/Service';
+import User from '../models/User';
+import CreditTransaction from '../models/CreditTransaction';
 
 // @desc    Get all services
 // @route   GET /api/services
@@ -109,7 +111,42 @@ export const createService = async (req: Request, res: Response, next: NextFunct
     // Add user to req.body
     req.body.provider = req.user?.id;
 
+    // Check if user has enough credits (5 credits required to create a service)
+    const REQUIRED_CREDITS = 5;
+    const user = await User.findById(req.user?.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+      });
+    }
+
+    // Check if user has enough credits
+    if (user.credits < REQUIRED_CREDITS) {
+      return res.status(400).json({
+        success: false,
+        error: 'Insufficient credits',
+        requiredCredits: REQUIRED_CREDITS,
+        currentCredits: user.credits,
+      });
+    }
+
+    // Create the service
     const service = await Service.create(req.body);
+
+    // Deduct credits from user
+    user.credits -= REQUIRED_CREDITS;
+    await user.save();
+
+    // Record credit transaction
+    await CreditTransaction.create({
+      user: user._id,
+      amount: -REQUIRED_CREDITS,
+      type: 'usage',
+      description: `Service creation: ${service.name}`,
+      reference: service._id?.toString(),
+    });
 
     res.status(201).json({
       success: true,

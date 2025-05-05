@@ -7,7 +7,7 @@ import {
 } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, CreditCard, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -36,6 +36,7 @@ import { Icons } from "@/components/ui/icons";
 import { RootState } from "@/store/store";
 import { useGetServiceByIdQuery } from "@/store/api/serviceApi";
 import { useCreateBookingMutation } from "@/store/api/bookingApi";
+import { useGetUserSubscriptionQuery } from "@/store/api/subscriptionApi";
 
 const BookingPage = () => {
   const { id = "" } = useParams<{ id: string }>();
@@ -46,6 +47,9 @@ const BookingPage = () => {
   // Get user from Redux store
   const { user } = useSelector((state: RootState) => state.auth);
   const isCustomer = user?.role === "customer";
+
+  // Get user subscription and credits
+  const { data: subscriptionData, isLoading: isLoadingSubscription } = useGetUserSubscriptionQuery();
 
   // State for form
   const [date, setDate] = useState<Date | undefined>(undefined);
@@ -95,12 +99,26 @@ const BookingPage = () => {
     return Object.keys(errors).length === 0;
   };
 
+  // Check if user has enough credits
+  const REQUIRED_CREDITS = 5;
+  const userCredits = subscriptionData?.data.credits || 0;
+  const hasEnoughCredits = userCredits >= REQUIRED_CREDITS;
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) return;
     if (!service || !selectedOption) return;
+
+    // Check credits before proceeding
+    if (!hasEnoughCredits) {
+      toast.error("Insufficient credits", {
+        description: `You need at least ${REQUIRED_CREDITS} credits to book a service.`
+      });
+      navigate(`/subscription/get-credits?required=${REQUIRED_CREDITS}&returnUrl=/marketplace/book/${id}`);
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -119,7 +137,14 @@ const BookingPage = () => {
       toast.success("Booking submitted successfully!");
       navigate("/user/my-bookings");
     } catch (error: any) {
-      toast.error(error.data?.error || "Failed to create booking");
+      if (error.data?.error === "Insufficient credits") {
+        toast.error("Insufficient credits", {
+          description: `You need at least ${REQUIRED_CREDITS} credits to book a service.`
+        });
+        navigate(`/subscription/get-credits?required=${REQUIRED_CREDITS}&returnUrl=/marketplace/book/${id}`);
+      } else {
+        toast.error(error.data?.error || "Failed to create booking");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -315,6 +340,31 @@ const BookingPage = () => {
                   />
                 </div>
 
+                {/* Credits Warning */}
+                {!isLoadingSubscription && !hasEnoughCredits && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
+                    <div className="flex">
+                      <AlertCircle className="h-5 w-5 text-yellow-500 mr-2" />
+                      <div>
+                        <p className="font-medium text-yellow-700">Insufficient Credits</p>
+                        <p className="text-yellow-600 text-sm">
+                          You need at least {REQUIRED_CREDITS} credits to book this service.
+                          You currently have {userCredits} credits.
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-2 bg-yellow-100 border-yellow-300 text-yellow-800 hover:bg-yellow-200"
+                          onClick={() => navigate(`/subscription/get-credits?required=${REQUIRED_CREDITS}&returnUrl=/marketplace/book/${id}`)}
+                        >
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          Get More Credits
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="pt-4 flex gap-4">
                   <Button type="button" variant="outline" asChild>
                     <Link to={`/marketplace/service/${id}`}>Cancel</Link>
@@ -323,13 +373,20 @@ const BookingPage = () => {
                     type="submit"
                     className="flex-1"
                     disabled={
-                      isSubmitting || isCreatingBooking || !selectedOption
+                      isSubmitting ||
+                      isCreatingBooking ||
+                      !selectedOption ||
+                      !hasEnoughCredits
                     }
                   >
                     {(isSubmitting || isCreatingBooking) && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
-                    Confirm Booking
+                    {hasEnoughCredits ? (
+                      <>Confirm Booking</>
+                    ) : (
+                      <>Need {REQUIRED_CREDITS} Credits</>
+                    )}
                   </Button>
                 </div>
               </form>

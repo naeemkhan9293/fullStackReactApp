@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import Booking from "../models/Booking";
 import Service from "../models/Service";
+import User from "../models/User";
+import { deductCredits, hasEnoughCredits } from "../utils/creditTransaction";
 
 // @desc    Get all bookings
 // @route   GET /api/bookings
@@ -196,10 +198,31 @@ export const createBooking = async (
       });
     }
 
+    // Check if user has enough credits (minimum 5 credits required)
+    const REQUIRED_CREDITS = 5;
+    const hasCredits = await hasEnoughCredits(req.user.id, REQUIRED_CREDITS);
+
+    if (!hasCredits) {
+      return res.status(400).json({
+        success: false,
+        error: "Insufficient credits",
+        requiredCredits: REQUIRED_CREDITS,
+      });
+    }
+
     // Add provider to req.body
     req.body.provider = service.provider;
 
+    // Create the booking
     const booking = await Booking.create(req.body);
+
+    // Deduct credits from user
+    await deductCredits(
+      req.user.id,
+      REQUIRED_CREDITS,
+      `Booking for ${service.name}`,
+      booking.id
+    );
 
     res.status(201).json({
       success: true,

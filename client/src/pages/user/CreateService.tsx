@@ -141,9 +141,24 @@ const CreateService = () => {
       navigate("/user/my-services");
     } catch (error: any) {
       console.error('Service creation error:', error);
-      toast.error("Failed to create service", {
-        description: error.data?.error || "An error occurred while creating your service. Please try again."
-      });
+
+      // Check if the error is due to insufficient credits
+      if (error.data?.error === "Insufficient credits") {
+        const requiredCredits = error.data?.requiredCredits || 5;
+        const currentCredits = error.data?.currentCredits || 0;
+
+        toast.error("Insufficient credits", {
+          description: `You need ${requiredCredits} credits to create a service. You currently have ${currentCredits} credits.`,
+          action: {
+            label: "Buy Credits",
+            onClick: () => navigate(`/subscription/get-credits?required=${requiredCredits}&returnUrl=/user/create-service`)
+          }
+        });
+      } else {
+        toast.error("Failed to create service", {
+          description: error.data?.error || "An error occurred while creating your service. Please try again."
+        });
+      }
     }
   };
 

@@ -33,6 +33,7 @@ const UserLayout = () => {
     { name: "Dashboard", path: "/user/dashboard", icon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
     { name: "My Services", path: "/user/my-services", icon: <Briefcase className="mr-2 h-4 w-4" /> },
     { name: "My Bookings", path: "/user/my-bookings", icon: <Calendar className="mr-2 h-4 w-4" /> },
+    { name: "Subscription", path: "/user/subscription", icon: <CreditCard className="mr-2 h-4 w-4" /> },
     { name: "Profile", path: "/user/profile", icon: <Settings className="mr-2 h-4 w-4" /> },
   ];
 
