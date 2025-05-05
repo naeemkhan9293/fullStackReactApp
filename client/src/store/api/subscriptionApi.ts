@@ -78,6 +78,18 @@ export interface CreditHistoryResponse {
   data: CreditTransaction[];
 }
 
+export interface CreditPackage {
+  package: 'small' | 'medium' | 'large';
+}
+
+export interface CreditPurchaseResponse {
+  success: boolean;
+  data: {
+    sessionId: string;
+    url: string;
+  };
+}
+
 export const subscriptionApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getSubscriptionPlans: builder.query<SubscriptionPlansResponse, void>({
@@ -111,6 +123,13 @@ export const subscriptionApi = baseApi.injectEndpoints({
     getCreditHistory: builder.query<CreditHistoryResponse, void>({
       query: () => '/subscription/credits/history',
     }),
+    purchaseCredits: builder.mutation<CreditPurchaseResponse, CreditPackage>({
+      query: (data) => ({
+        url: '/subscription/credits/purchase',
+        method: 'POST',
+        body: data,
+      }),
+    }),
   }),
 });
 
@@ -121,4 +140,5 @@ export const {
   useCancelSubscriptionMutation,
   useResumeSubscriptionMutation,
   useGetCreditHistoryQuery,
+  usePurchaseCreditsMutation,
 } = subscriptionApi;

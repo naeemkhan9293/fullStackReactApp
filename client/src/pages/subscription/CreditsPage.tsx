@@ -1,11 +1,8 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 import {
   Loader2,
   CreditCard,
   Coins,
-  ArrowRight,
   Plus,
   Clock,
   ChevronRight,
@@ -23,14 +20,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useGetUserSubscriptionQuery,
   useGetCreditHistoryQuery,
-  useCreateCheckoutSessionMutation,
 } from "@/store/api/subscriptionApi";
 
 const CreditsPage = () => {
   const navigate = useNavigate();
-  const [selectedPlan, setSelectedPlan] = useState<
-    "regular" | "premium" | null
-  >(null);
 
   // Fetch user's subscription
   const { data: subscriptionData, isLoading: isLoadingSubscription } =
@@ -39,28 +32,6 @@ const CreditsPage = () => {
   // Fetch credit history
   const { data: creditHistoryData, isLoading: isLoadingHistory } =
     useGetCreditHistoryQuery();
-
-  // Create checkout session mutation
-  const [createCheckoutSession, { isLoading: isCreatingCheckout }] =
-    useCreateCheckoutSessionMutation();
-
-  // Handle subscription checkout
-  const handleSubscribe = async (plan: "regular" | "premium") => {
-    try {
-      setSelectedPlan(plan);
-      const response = await createCheckoutSession({ plan }).unwrap();
-
-      // Redirect to Stripe checkout
-      window.location.href = response.data.url;
-    } catch (error: any) {
-      console.error("Subscription error:", error);
-      toast.error("Failed to create subscription", {
-        description:
-          error.data?.error || "An error occurred. Please try again.",
-      });
-      setSelectedPlan(null);
-    }
-  };
 
   // Format date
   const formatDate = (dateString: string) => {

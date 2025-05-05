@@ -7,6 +7,7 @@ import {
   cancelSubscription,
   resumeSubscription,
   getCreditHistory,
+  purchaseCredits,
 } from '../controllers/subscription';
 import { protect } from '../middleware/auth';
 import { checkAccess } from '../middleware/accessControl';
@@ -23,5 +24,6 @@ router.post('/checkout', protect, createCheckoutSession);
 router.post('/cancel', protect, cancelSubscription);
 router.post('/resume', protect, resumeSubscription);
 router.get('/credits/history', protect, getCreditHistory);
+router.post('/credits/purchase', protect, purchaseCredits);
 
 export { router };

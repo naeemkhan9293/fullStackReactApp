@@ -229,6 +229,9 @@ export const handleWebhook = async (req: Request, res: Response, next: NextFunct
     case 'invoice.payment_failed':
       await handleInvoicePaymentFailed(event.data.object);
       break;
+    case 'checkout.session.completed':
+      await handleCheckoutSessionCompleted(event.data.object);
+      break;
     default:
       console.log(`Unhandled event type: ${event.type}`);
   }
@@ -466,6 +469,44 @@ const handleInvoicePaymentFailed = async (invoice: Stripe.Invoice) => {
   }
 };
 
+// Helper function to handle checkout session completed event
+const handleCheckoutSessionCompleted = async (session: Stripe.Checkout.Session) => {
+  try {
+    // Only process credit purchase sessions (one-time payments)
+    if (session.mode === 'payment' && session.metadata?.creditPackage) {
+      const customerId = session.customer;
+      const userId = session.metadata.userId;
+      const creditPackage = session.metadata.creditPackage;
+      const creditsToAdd = parseInt(session.metadata.credits || '0');
+
+      // Find user by ID
+      const user = await User.findById(userId);
+
+      if (!user) {
+        console.error(`User not found for ID: ${userId}`);
+        return;
+      }
+
+      // Add credits to user
+      user.credits += creditsToAdd;
+      await user.save();
+
+      // Record credit transaction
+      await CreditTransaction.create({
+        user: user._id,
+        amount: creditsToAdd,
+        type: 'purchase',
+        description: `Purchased ${creditsToAdd} credits`,
+        reference: session.id,
+      });
+
+      console.log(`Added ${creditsToAdd} credits to user: ${user._id}`);
+    }
+  } catch (error) {
+    console.error('Error handling checkout session completed event:', error);
+  }
+};
+
 // @desc    Cancel subscription
 // @route   POST /api/subscription/cancel
 // @access  Private
@@ -569,6 +610,112 @@ export const getCreditHistory = async (req: Request, res: Response, next: NextFu
       data: transactions,
     });
   } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Purchase credits directly (without subscription)
+// @route   POST /api/subscription/credits/purchase
+// @access  Private
+export const purchaseCredits = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { package: creditPackage } = req.body;
+
+    // Define available credit packages
+    const CREDIT_PACKAGES = {
+      small: {
+        name: 'Small Credit Package',
+        credits: 20,
+        price: 5.99,
+        priceId: process.env.CREDIT_PACKAGE_SMALL,
+      },
+      medium: {
+        name: 'Medium Credit Package',
+        credits: 50,
+        price: 12.99,
+        priceId: process.env.CREDIT_PACKAGE_MEDIUM,
+      },
+      large: {
+        name: 'Large Credit Package',
+        credits: 100,
+        price: 19.99,
+        priceId: process.env.CREDIT_PACKAGE_LARGE,
+      },
+    };
+
+    if (!creditPackage || !['small', 'medium', 'large'].includes(creditPackage)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid credit package',
+      });
+    }
+
+    const user = await User.findById(req.user?.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+      });
+    }
+
+    // Create or retrieve Stripe customer
+    let customer;
+    if (user.stripeCustomerId) {
+      customer = await stripe.customers.retrieve(user.stripeCustomerId);
+    } else {
+      customer = await stripe.customers.create({
+        email: user.email,
+        name: user.name,
+        metadata: {
+          userId: user.id,
+        },
+      });
+
+      // Update user with Stripe customer ID
+      user.stripeCustomerId = customer.id;
+      await user.save();
+    }
+
+    // Get credit package details
+    const packageDetails = CREDIT_PACKAGES[creditPackage as keyof typeof CREDIT_PACKAGES];
+
+    // Create checkout session for one-time payment
+    const session = await stripe.checkout.sessions.create({
+      customer: customer.id,
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {      
+              name: packageDetails.name,
+              description: `${packageDetails.credits} Credits`,
+            },
+            unit_amount: Math.round(packageDetails.price * 100), // Convert to cents
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      metadata: {
+        userId: user.id,
+        creditPackage,
+        credits: packageDetails.credits.toString(),
+      },
+      success_url: `${req.headers.origin}/subscription/success?type=credits&package=${creditPackage}`,
+      cancel_url: `${req.headers.origin}/subscription/cancel`,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        sessionId: session.id,
+        url: session.url,
+      },
+    });
+  } catch (err) {
+    console.error('Error creating credit purchase session:', err);
     next(err);
   }
 };
