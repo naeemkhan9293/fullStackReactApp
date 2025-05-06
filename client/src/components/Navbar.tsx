@@ -25,7 +25,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User, Settings, Briefcase, CreditCard, Plus, Coins } from "lucide-react";
+import {
+  LogOut,
+  User,
+  Settings,
+  Briefcase,
+  CreditCard,
+  Plus,
+  Coins,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
@@ -36,9 +44,10 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   // Fetch user subscription data to get credits
-  const { data: userSubscription, isLoading: isLoadingSubscription } = useGetUserSubscriptionQuery(undefined, {
-    skip: !isAuthenticated,
-  });
+  const { data: userSubscription, isLoading: isLoadingSubscription } =
+    useGetUserSubscriptionQuery(undefined, {
+      skip: !isAuthenticated,
+    });
 
   // Get user credits
   const userCredits = userSubscription?.data?.credits || 0;
@@ -72,7 +81,8 @@ const Navbar = () => {
             to="/"
             className="text-xl font-bold hover:text-primary transition-colors"
           >
-            LocalConnect
+            {/* LocalConnect */}
+            <img src="/logo.png" alt="logo" className="w-32 h-10"/>
           </Link>
 
           <NavigationMenu>
@@ -131,16 +141,24 @@ const Navbar = () => {
               {/* Credits Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex items-center gap-2 p-5 ">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2 p-5 "
+                  >
                     <Coins className="h-4 w-4" />
                     <span>{isLoadingSubscription ? "..." : userCredits}</span>
-                    <Badge variant="secondary" className="ml-1 text-xs">Credits</Badge>
+                    <Badge variant="secondary" className="ml-1 text-xs">
+                      Credits
+                    </Badge>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end">
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">Your Credits</p>
+                      <p className="text-sm font-medium leading-none">
+                        Your Credits
+                      </p>
                       <div className="flex items-center mt-2">
                         <Coins className="h-5 w-5 text-primary mr-2" />
                         <span className="text-xl font-bold">{userCredits}</span>
@@ -153,15 +171,21 @@ const Navbar = () => {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/subscription/credits")}>
+                  <DropdownMenuItem
+                    onClick={() => navigate("/subscription/credits")}
+                  >
                     <Coins className="mr-2 h-4 w-4" />
                     <span>View Credit History</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/subscription/get-credits")}>
+                  <DropdownMenuItem
+                    onClick={() => navigate("/subscription/get-credits")}
+                  >
                     <Plus className="mr-2 h-4 w-4" />
                     <span>Buy More Credits</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/user/subscription")}>
+                  <DropdownMenuItem
+                    onClick={() => navigate("/user/subscription")}
+                  >
                     <CreditCard className="mr-2 h-4 w-4" />
                     <span>Manage Subscription</span>
                   </DropdownMenuItem>
@@ -179,7 +203,9 @@ const Navbar = () => {
                       {user.avatar ? (
                         <AvatarImage src={user.avatar} alt={user.name} />
                       ) : (
-                        <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                        <AvatarFallback>
+                          {getInitials(user.name)}
+                        </AvatarFallback>
                       )}
                     </Avatar>
                   </Button>
@@ -194,8 +220,18 @@ const Navbar = () => {
                         {user.email}
                       </p>
                       <div className="mt-1">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${user.role === 'provider' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
-                          {user.role === 'provider' ? 'Service Provider' : user.role === 'admin' ? 'Administrator' : 'Customer'}
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${
+                            user.role === "provider"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-green-100 text-green-800"
+                          }`}
+                        >
+                          {user.role === "provider"
+                            ? "Service Provider"
+                            : user.role === "admin"
+                            ? "Administrator"
+                            : "Customer"}
                         </span>
                       </div>
                     </div>

@@ -1,28 +1,28 @@
-import { Request, Response, NextFunction } from 'express';
-import User from '../models/User';
-import Subscription from '../models/Subscription';
-import CreditTransaction from '../models/CreditTransaction';
-import stripe from '../config/stripe';
-import Stripe from 'stripe';
+import { Request, Response, NextFunction } from "express";
+import User from "../models/User";
+import Subscription from "../models/Subscription";
+import CreditTransaction from "../models/CreditTransaction";
+import stripe from "../config/stripe";
+import Stripe from "stripe";
 
 // Subscription plan details
 const SUBSCRIPTION_PLANS = {
   regular: {
-    name: 'Regular Subscription',
+    name: "Regular Subscription",
     priceId: process.env.REGUALR_USER,
     trialDays: 7,
     initialCredits: 10, // Updated to 10 credits for trial
     monthlyCredits: 100,
-    interval: 'month',
+    interval: "month",
     intervalCount: 1,
   },
   premium: {
-    name: 'Premium Subscription',
+    name: "Premium Subscription",
     priceId: process.env.PREMIUM_USER,
     trialDays: 10,
     initialCredits: 20, // Updated to 20 credits for trial
     monthlyCredits: 200,
-    interval: 'year',
+    interval: "year",
     intervalCount: 1,
   },
 };
@@ -30,7 +30,11 @@ const SUBSCRIPTION_PLANS = {
 // @desc    Get subscription plans
 // @route   GET /api/subscription/plans
 // @access  Public
-export const getSubscriptionPlans = async (req: Request, res: Response, next: NextFunction) => {
+export const getSubscriptionPlans = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     res.status(200).json({
       success: true,
@@ -61,14 +65,18 @@ export const getSubscriptionPlans = async (req: Request, res: Response, next: Ne
 // @desc    Get user subscription
 // @route   GET /api/subscription
 // @access  Private
-export const getUserSubscription = async (req: Request, res: Response, next: NextFunction) => {
+export const getUserSubscription = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const user = await User.findById(req.user?.id);
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found',
+        error: "User not found",
       });
     }
 
@@ -76,10 +84,12 @@ export const getUserSubscription = async (req: Request, res: Response, next: Nex
     let stripeSubscription: Stripe.Subscription | null = null;
     if (user.stripeSubscriptionId) {
       try {
-        const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+        const subscription = await stripe.subscriptions.retrieve(
+          user.stripeSubscriptionId
+        );
         stripeSubscription = subscription as Stripe.Subscription;
       } catch (error) {
-        console.error('Error retrieving subscription from Stripe:', error);
+        console.error("Error retrieving subscription from Stripe:", error);
       }
     }
 
@@ -91,12 +101,16 @@ export const getUserSubscription = async (req: Request, res: Response, next: Nex
         subscriptionStatus: user.subscriptionStatus,
         trialEndsAt: user.trialEndsAt,
         nextBillingDate: user.nextBillingDate,
-        stripeSubscription: stripeSubscription ? {
-          id: stripeSubscription.id,
-          status: stripeSubscription.status,
-          currentPeriodEnd: new Date((stripeSubscription as any).current_period_end * 1000),
-          cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-        } : null,
+        stripeSubscription: stripeSubscription
+          ? {
+              id: stripeSubscription.id,
+              status: stripeSubscription.status,
+              currentPeriodEnd: new Date(
+                (stripeSubscription as any).current_period_end * 1000
+              ),
+              cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+            }
+          : null,
       },
     });
   } catch (err) {
@@ -107,14 +121,18 @@ export const getUserSubscription = async (req: Request, res: Response, next: Nex
 // @desc    Create checkout session for subscription
 // @route   POST /api/subscription/checkout
 // @access  Private
-export const createCheckoutSession = async (req: Request, res: Response, next: NextFunction) => {
+export const createCheckoutSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const { plan } = req.body;
 
-    if (!plan || !['regular', 'premium'].includes(plan)) {
+    if (!plan || !["regular", "premium"].includes(plan)) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid subscription plan',
+        error: "Invalid subscription plan",
       });
     }
 
@@ -123,15 +141,18 @@ export const createCheckoutSession = async (req: Request, res: Response, next: N
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found',
+        error: "User not found",
       });
     }
 
     // Check if user already has an active subscription
-    if (user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing') {
+    if (
+      user.subscriptionStatus === "active" ||
+      user.subscriptionStatus === "trialing"
+    ) {
       return res.status(400).json({
         success: false,
-        error: 'User already has an active subscription',
+        error: "User already has an active subscription",
       });
     }
 
@@ -154,19 +175,21 @@ export const createCheckoutSession = async (req: Request, res: Response, next: N
     }
 
     // Get subscription plan details
-    const planDetails = SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS];
-
+    const planDetails =
+      SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS];
+    console.log(planDetails);
+    
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,
-      payment_method_types: ['card'],
+      payment_method_types: ["card"],
       line_items: [
         {
           price: planDetails.priceId,
           quantity: 1,
         },
       ],
-      mode: 'subscription',
+      mode: "subscription",
       subscription_data: {
         trial_period_days: planDetails.trialDays,
         metadata: {
@@ -193,8 +216,12 @@ export const createCheckoutSession = async (req: Request, res: Response, next: N
 // @desc    Handle subscription webhook events
 // @route   POST /api/subscription/webhook
 // @access  Public
-export const handleWebhook = async (req: Request, res: Response, next: NextFunction) => {
-  const signature = req.headers['stripe-signature'] as string;
+export const handleWebhook = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const signature = req.headers["stripe-signature"] as string;
 
   let event;
 
@@ -214,22 +241,22 @@ export const handleWebhook = async (req: Request, res: Response, next: NextFunct
 
   // Handle the event
   switch (event.type) {
-    case 'customer.subscription.created':
+    case "customer.subscription.created":
       await handleSubscriptionCreated(event.data.object);
       break;
-    case 'customer.subscription.updated':
+    case "customer.subscription.updated":
       await handleSubscriptionUpdated(event.data.object);
       break;
-    case 'customer.subscription.deleted':
+    case "customer.subscription.deleted":
       await handleSubscriptionDeleted(event.data.object);
       break;
-    case 'invoice.payment_succeeded':
+    case "invoice.payment_succeeded":
       await handleInvoicePaymentSucceeded(event.data.object);
       break;
-    case 'invoice.payment_failed':
+    case "invoice.payment_failed":
       await handleInvoicePaymentFailed(event.data.object);
       break;
-    case 'checkout.session.completed':
+    case "checkout.session.completed":
       await handleCheckoutSessionCompleted(event.data.object);
       break;
     default:
@@ -245,7 +272,7 @@ const handleSubscriptionCreated = async (subscription: Stripe.Subscription) => {
     const customerId = subscription.customer;
     const subscriptionId = subscription.id;
     const status = subscription.status;
-    const plan = subscription.metadata.plan || 'regular';
+    const plan = subscription.metadata.plan || "regular";
 
     // Find user by Stripe customer ID
     const user = await User.findOne({ stripeCustomerId: customerId });
@@ -257,7 +284,8 @@ const handleSubscriptionCreated = async (subscription: Stripe.Subscription) => {
 
     // Update user subscription details
     user.stripeSubscriptionId = subscriptionId;
-    user.subscriptionType = (plan === 'regular' || plan === 'premium') ? plan : 'regular';
+    user.subscriptionType =
+      plan === "regular" || plan === "premium" ? plan : "regular";
     user.subscriptionStatus = status as any;
 
     // Set trial end date if applicable
@@ -266,10 +294,13 @@ const handleSubscriptionCreated = async (subscription: Stripe.Subscription) => {
     }
 
     // Set next billing date
-    user.nextBillingDate = new Date((subscription as any).current_period_end * 1000);
+    user.nextBillingDate = new Date(
+      (subscription as any).current_period_end * 1000
+    );
 
     // Add initial credits based on plan
-    const planDetails = SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS];
+    const planDetails =
+      SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS];
     user.credits += planDetails.initialCredits;
 
     await user.save();
@@ -281,25 +312,33 @@ const handleSubscriptionCreated = async (subscription: Stripe.Subscription) => {
       stripeSubscriptionId: subscriptionId,
       subscriptionType: plan,
       status,
-      currentPeriodStart: new Date((subscription as any).current_period_start * 1000),
-      currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
+      currentPeriodStart: new Date(
+        (subscription as any).current_period_start * 1000
+      ),
+      currentPeriodEnd: new Date(
+        (subscription as any).current_period_end * 1000
+      ),
       cancelAtPeriodEnd: subscription.cancel_at_period_end,
-      trialStart: subscription.trial_start ? new Date(subscription.trial_start * 1000) : undefined,
-      trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : undefined,
+      trialStart: subscription.trial_start
+        ? new Date(subscription.trial_start * 1000)
+        : undefined,
+      trialEnd: subscription.trial_end
+        ? new Date(subscription.trial_end * 1000)
+        : undefined,
     });
 
     // Record credit transaction
     await CreditTransaction.create({
       user: user._id,
       amount: planDetails.initialCredits,
-      type: 'subscription',
+      type: "subscription",
       description: `Initial credits for ${plan} subscription`,
       reference: subscriptionId,
     });
 
     console.log(`Subscription created for user: ${user._id}`);
   } catch (error) {
-    console.error('Error handling subscription created event:', error);
+    console.error("Error handling subscription created event:", error);
   }
 };
 
@@ -327,7 +366,9 @@ const handleSubscriptionUpdated = async (subscription: Stripe.Subscription) => {
     }
 
     // Update next billing date
-    user.nextBillingDate = new Date((subscription as any).current_period_end * 1000);
+    user.nextBillingDate = new Date(
+      (subscription as any).current_period_end * 1000
+    );
 
     await user.save();
 
@@ -336,16 +377,22 @@ const handleSubscriptionUpdated = async (subscription: Stripe.Subscription) => {
       { stripeSubscriptionId: subscriptionId },
       {
         status,
-        currentPeriodStart: new Date((subscription as any).current_period_start * 1000),
-        currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
+        currentPeriodStart: new Date(
+          (subscription as any).current_period_start * 1000
+        ),
+        currentPeriodEnd: new Date(
+          (subscription as any).current_period_end * 1000
+        ),
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
-        canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : undefined,
+        canceledAt: subscription.canceled_at
+          ? new Date(subscription.canceled_at * 1000)
+          : undefined,
       }
     );
 
     console.log(`Subscription updated for user: ${user._id}`);
   } catch (error) {
-    console.error('Error handling subscription updated event:', error);
+    console.error("Error handling subscription updated event:", error);
   }
 };
 
@@ -364,8 +411,8 @@ const handleSubscriptionDeleted = async (subscription: Stripe.Subscription) => {
     }
 
     // Update user subscription details
-    user.subscriptionStatus = 'none';
-    user.subscriptionType = 'none';
+    user.subscriptionStatus = "none";
+    user.subscriptionType = "none";
     user.stripeSubscriptionId = undefined;
     user.trialEndsAt = undefined;
     user.nextBillingDate = undefined;
@@ -376,14 +423,14 @@ const handleSubscriptionDeleted = async (subscription: Stripe.Subscription) => {
     await Subscription.findOneAndUpdate(
       { stripeSubscriptionId: subscriptionId },
       {
-        status: 'canceled',
+        status: "canceled",
         canceledAt: new Date(),
       }
     );
 
     console.log(`Subscription deleted for user: ${user._id}`);
   } catch (error) {
-    console.error('Error handling subscription deleted event:', error);
+    console.error("Error handling subscription deleted event:", error);
   }
 };
 
@@ -404,7 +451,9 @@ const handleInvoicePaymentSucceeded = async (invoice: Stripe.Invoice) => {
       }
 
       // Get subscription to determine plan
-      const subscription = await Subscription.findOne({ stripeSubscriptionId: subscriptionId });
+      const subscription = await Subscription.findOne({
+        stripeSubscriptionId: subscriptionId,
+      });
 
       if (!subscription) {
         console.error(`Subscription not found: ${subscriptionId}`);
@@ -413,10 +462,14 @@ const handleInvoicePaymentSucceeded = async (invoice: Stripe.Invoice) => {
 
       // Add credits based on plan
       const plan = subscription.subscriptionType;
-      const planDetails = SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS];
+      const planDetails =
+        SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS];
 
       // Only add credits if it's not the first invoice (which is for the trial)
-      if (!invoice.billing_reason || invoice.billing_reason !== 'subscription_create') {
+      if (
+        !invoice.billing_reason ||
+        invoice.billing_reason !== "subscription_create"
+      ) {
         user.credits += planDetails.monthlyCredits;
         await user.save();
 
@@ -424,16 +477,18 @@ const handleInvoicePaymentSucceeded = async (invoice: Stripe.Invoice) => {
         await CreditTransaction.create({
           user: user._id,
           amount: planDetails.monthlyCredits,
-          type: 'subscription',
+          type: "subscription",
           description: `Monthly credits for ${plan} subscription`,
           reference: subscriptionId,
         });
 
-        console.log(`Added ${planDetails.monthlyCredits} credits to user: ${user._id}`);
+        console.log(
+          `Added ${planDetails.monthlyCredits} credits to user: ${user._id}`
+        );
       }
     }
   } catch (error) {
-    console.error('Error handling invoice payment succeeded event:', error);
+    console.error("Error handling invoice payment succeeded event:", error);
   }
 };
 
@@ -453,31 +508,33 @@ const handleInvoicePaymentFailed = async (invoice: Stripe.Invoice) => {
       }
 
       // Update user subscription status
-      user.subscriptionStatus = 'past_due';
+      user.subscriptionStatus = "past_due";
       await user.save();
 
       // Update subscription record
       await Subscription.findOneAndUpdate(
         { stripeSubscriptionId: subscriptionId },
-        { status: 'past_due' }
+        { status: "past_due" }
       );
 
       console.log(`Subscription payment failed for user: ${user._id}`);
     }
   } catch (error) {
-    console.error('Error handling invoice payment failed event:', error);
+    console.error("Error handling invoice payment failed event:", error);
   }
 };
 
 // Helper function to handle checkout session completed event
-const handleCheckoutSessionCompleted = async (session: Stripe.Checkout.Session) => {
+const handleCheckoutSessionCompleted = async (
+  session: Stripe.Checkout.Session
+) => {
   try {
     // Only process credit purchase sessions (one-time payments)
-    if (session.mode === 'payment' && session.metadata?.creditPackage) {
+    if (session.mode === "payment" && session.metadata?.creditPackage) {
       const customerId = session.customer;
       const userId = session.metadata.userId;
       const creditPackage = session.metadata.creditPackage;
-      const creditsToAdd = parseInt(session.metadata.credits || '0');
+      const creditsToAdd = parseInt(session.metadata.credits || "0");
 
       // Find user by ID
       const user = await User.findById(userId);
@@ -495,7 +552,7 @@ const handleCheckoutSessionCompleted = async (session: Stripe.Checkout.Session) 
       await CreditTransaction.create({
         user: user._id,
         amount: creditsToAdd,
-        type: 'purchase',
+        type: "purchase",
         description: `Purchased ${creditsToAdd} credits`,
         reference: session.id,
       });
@@ -503,35 +560,42 @@ const handleCheckoutSessionCompleted = async (session: Stripe.Checkout.Session) 
       console.log(`Added ${creditsToAdd} credits to user: ${user._id}`);
     }
   } catch (error) {
-    console.error('Error handling checkout session completed event:', error);
+    console.error("Error handling checkout session completed event:", error);
   }
 };
 
 // @desc    Cancel subscription
 // @route   POST /api/subscription/cancel
 // @access  Private
-export const cancelSubscription = async (req: Request, res: Response, next: NextFunction) => {
+export const cancelSubscription = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const user = await User.findById(req.user?.id);
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found',
+        error: "User not found",
       });
     }
 
     if (!user.stripeSubscriptionId) {
       return res.status(400).json({
         success: false,
-        error: 'No active subscription found',
+        error: "No active subscription found",
       });
     }
 
     // Cancel subscription at period end
-    const subscription = await stripe.subscriptions.update(user.stripeSubscriptionId, {
-      cancel_at_period_end: true,
-    });
+    const subscription = await stripe.subscriptions.update(
+      user.stripeSubscriptionId,
+      {
+        cancel_at_period_end: true,
+      }
+    );
 
     // Update subscription record
     await Subscription.findOneAndUpdate(
@@ -542,9 +606,12 @@ export const cancelSubscription = async (req: Request, res: Response, next: Next
     res.status(200).json({
       success: true,
       data: {
-        message: 'Subscription will be canceled at the end of the billing period',
+        message:
+          "Subscription will be canceled at the end of the billing period",
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
-        currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
+        currentPeriodEnd: new Date(
+          (subscription as any).current_period_end * 1000
+        ),
       },
     });
   } catch (err) {
@@ -555,28 +622,35 @@ export const cancelSubscription = async (req: Request, res: Response, next: Next
 // @desc    Resume canceled subscription
 // @route   POST /api/subscription/resume
 // @access  Private
-export const resumeSubscription = async (req: Request, res: Response, next: NextFunction) => {
+export const resumeSubscription = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const user = await User.findById(req.user?.id);
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found',
+        error: "User not found",
       });
     }
 
     if (!user.stripeSubscriptionId) {
       return res.status(400).json({
         success: false,
-        error: 'No subscription found',
+        error: "No subscription found",
       });
     }
 
     // Resume subscription by removing cancel_at_period_end
-    const subscription = await stripe.subscriptions.update(user.stripeSubscriptionId, {
-      cancel_at_period_end: false,
-    });
+    const subscription = await stripe.subscriptions.update(
+      user.stripeSubscriptionId,
+      {
+        cancel_at_period_end: false,
+      }
+    );
 
     // Update subscription record
     await Subscription.findOneAndUpdate(
@@ -587,7 +661,7 @@ export const resumeSubscription = async (req: Request, res: Response, next: Next
     res.status(200).json({
       success: true,
       data: {
-        message: 'Subscription resumed successfully',
+        message: "Subscription resumed successfully",
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
       },
     });
@@ -599,10 +673,15 @@ export const resumeSubscription = async (req: Request, res: Response, next: Next
 // @desc    Get credit transaction history
 // @route   GET /api/subscription/credits/history
 // @access  Private
-export const getCreditHistory = async (req: Request, res: Response, next: NextFunction) => {
+export const getCreditHistory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const transactions = await CreditTransaction.find({ user: req.user?.id })
-      .sort({ createdAt: -1 });
+    const transactions = await CreditTransaction.find({
+      user: req.user?.id,
+    }).sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -617,36 +696,43 @@ export const getCreditHistory = async (req: Request, res: Response, next: NextFu
 // @desc    Purchase credits directly (without subscription)
 // @route   POST /api/subscription/credits/purchase
 // @access  Private
-export const purchaseCredits = async (req: Request, res: Response, next: NextFunction) => {
+export const purchaseCredits = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const { package: creditPackage } = req.body;
 
     // Define available credit packages
     const CREDIT_PACKAGES = {
       small: {
-        name: 'Small Credit Package',
+        name: "Small Credit Package",
         credits: 20,
         price: 5.99,
         priceId: process.env.CREDIT_PACKAGE_SMALL,
       },
       medium: {
-        name: 'Medium Credit Package',
+        name: "Medium Credit Package",
         credits: 50,
         price: 12.99,
         priceId: process.env.CREDIT_PACKAGE_MEDIUM,
       },
       large: {
-        name: 'Large Credit Package',
+        name: "Large Credit Package",
         credits: 100,
         price: 19.99,
         priceId: process.env.CREDIT_PACKAGE_LARGE,
       },
     };
 
-    if (!creditPackage || !['small', 'medium', 'large'].includes(creditPackage)) {
+    if (
+      !creditPackage ||
+      !["small", "medium", "large"].includes(creditPackage)
+    ) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid credit package',
+        error: "Invalid credit package",
       });
     }
 
@@ -655,7 +741,7 @@ export const purchaseCredits = async (req: Request, res: Response, next: NextFun
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found',
+        error: "User not found",
       });
     }
 
@@ -678,17 +764,18 @@ export const purchaseCredits = async (req: Request, res: Response, next: NextFun
     }
 
     // Get credit package details
-    const packageDetails = CREDIT_PACKAGES[creditPackage as keyof typeof CREDIT_PACKAGES];
+    const packageDetails =
+      CREDIT_PACKAGES[creditPackage as keyof typeof CREDIT_PACKAGES];
 
     // Create checkout session for one-time payment
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,
-      payment_method_types: ['card'],
+      payment_method_types: ["card"],
       line_items: [
         {
           price_data: {
-            currency: 'usd',
-            product_data: {      
+            currency: "usd",
+            product_data: {
               name: packageDetails.name,
               description: `${packageDetails.credits} Credits`,
             },
@@ -697,7 +784,7 @@ export const purchaseCredits = async (req: Request, res: Response, next: NextFun
           quantity: 1,
         },
       ],
-      mode: 'payment',
+      mode: "payment",
       metadata: {
         userId: user.id,
         creditPackage,
@@ -715,7 +802,7 @@ export const purchaseCredits = async (req: Request, res: Response, next: NextFun
       },
     });
   } catch (err) {
-    console.error('Error creating credit purchase session:', err);
+    console.error("Error creating credit purchase session:", err);
     next(err);
   }
 };
