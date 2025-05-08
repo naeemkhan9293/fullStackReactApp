@@ -562,7 +562,10 @@ const GetCreditsPage = () => {
           ) : (
             <div className="text-center py-12 border rounded-lg bg-muted/20">
               <p className="text-muted-foreground mb-4">You don't have any subscriptions yet.</p>
-              <Button onClick={() => document.querySelector('[data-value="subscription"]')?.click()}>
+              <Button onClick={() => {
+                const element = document.querySelector('[data-value="subscription"]') as HTMLElement;
+                if (element) element.click();
+              }}>
                 View Subscription Plans
               </Button>
             </div>

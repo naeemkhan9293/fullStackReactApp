@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Loader2, CreditCard, Sparkles } from 'lucide-react';
+import { CheckCircle2, Loader2, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -241,7 +241,7 @@ const SubscriptionSuccess = () => {
           </p>
 
           {!isCreditPurchase && newSubscription && activeSubscription &&
-           newSubscription.id !== (activeSubscription.stripeSubscriptionId || activeSubscription.stripeSubscription) && (
+           newSubscription.id !== (activeSubscription.stripeSubscription?.id) && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
               <p className="text-blue-800 font-medium mb-2">
                 You now have multiple subscriptions!
