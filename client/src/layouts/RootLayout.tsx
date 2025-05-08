@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import Navbar from "@/components/Navbar";
+import { Navbar } from "@/components/Navbar/index";
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 import { selectIsAuthenticated } from "@/store/slices/authSlice";
@@ -9,24 +9,34 @@ const RootLayout = () => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
 
   // Fetch current user data if authenticated
-  const { data, error, isLoading, refetch } = useGetCurrentUserQuery(undefined, {
-    skip: !isAuthenticated,
-  });
+  const { data, error, isLoading, refetch } = useGetCurrentUserQuery(
+    undefined,
+    {
+      skip: !isAuthenticated,
+    }
+  );
 
   useEffect(() => {
     if (isAuthenticated) {
-      console.log('Token in localStorage:', localStorage.getItem('token'));
-      refetch().then(result => {
-        console.log('getCurrentUser result:', result);
-      }).catch(err => {
-        console.error('getCurrentUser refetch error:', err);
-      });
+      console.log("Token in localStorage:", localStorage.getItem("token"));
+      refetch()
+        .then((result) => {
+          console.log("getCurrentUser result:", result);
+        })
+        .catch((err) => {
+          console.error("getCurrentUser refetch error:", err);
+        });
     }
   }, [isAuthenticated, refetch]);
 
   // Log authentication state for debugging
   useEffect(() => {
-    console.log('Auth state:', { isAuthenticated, userData: data?.data, error, isLoading });
+    console.log("Auth state:", {
+      isAuthenticated,
+      userData: data?.data,
+      error,
+      isLoading,
+    });
   }, [isAuthenticated, data, error, isLoading]);
   return (
     <div className="flex min-h-screen w-full">
