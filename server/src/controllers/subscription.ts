@@ -1025,142 +1025,7 @@ export const debugAllSubscriptions = async (
   }
 };
 
-// @desc    Sync Stripe subscriptions with database
-// @route   POST /api/subscription/sync
-// @access  Private
-export const syncSubscriptions = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const user = await User.findById(req.user?.id);
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: "User not found",
-      });
-    }
-
-    if (!user.stripeCustomerId) {
-      return res.status(400).json({
-        success: false,
-        error: "No Stripe customer ID found for this user",
-      });
-    }
-
-    console.log(`Syncing subscriptions for user: ${user._id} (${user.email})`);
-
-    // Get all subscriptions from Stripe for this customer
-    const stripeSubscriptions = await stripe.subscriptions.list({
-      customer: user.stripeCustomerId,
-      status: 'all',
-      expand: ['data.default_payment_method']
-    });
-
-    console.log(`Found ${stripeSubscriptions.data.length} subscriptions in Stripe`);
-
-    // Get all subscriptions from database for this user
-    const dbSubscriptions = await Subscription.find({ user: user._id });
-    console.log(`Found ${dbSubscriptions.length} subscriptions in database`);
-
-    // Track new subscriptions added
-    const newSubscriptionsAdded = [];
-
-    // Process each Stripe subscription
-    for (const stripeSub of stripeSubscriptions.data) {
-      // Check if this subscription exists in the database
-      const existingSubscription = dbSubscriptions.find(
-        (dbSub) => dbSub.stripeSubscriptionId === stripeSub.id
-      );
-
-      if (!existingSubscription) {
-        try {
-          console.log(`Adding missing subscription from Stripe: ${stripeSub.id}`);
-          console.log('Stripe subscription data:', JSON.stringify({
-            id: stripeSub.id,
-            status: stripeSub.status,
-            current_period_start: (stripeSub as any).current_period_start,
-            current_period_end: (stripeSub as any).current_period_end,
-            trial_start: stripeSub.trial_start,
-            trial_end: stripeSub.trial_end,
-            metadata: stripeSub.metadata
-          }, null, 2));
-
-          // Get plan from metadata or default to regular
-          const plan = stripeSub.metadata?.plan || "regular";
-
-          // Safely convert timestamps to dates with validation
-          const safelyCreateDate = (timestamp: number | null | undefined): Date | undefined => {
-            if (!timestamp) return undefined;
-
-            const date = new Date(timestamp * 1000);
-            // Validate the date is valid
-            if (isNaN(date.getTime())) {
-              console.warn(`Invalid timestamp: ${timestamp}`);
-              return undefined;
-            }
-            return date;
-          };
-
-          const currentPeriodStart = safelyCreateDate((stripeSub as any).current_period_start);
-          const currentPeriodEnd = safelyCreateDate((stripeSub as any).current_period_end);
-          const trialStart = safelyCreateDate(stripeSub.trial_start);
-          const trialEnd = safelyCreateDate(stripeSub.trial_end);
-
-          // If we don't have valid dates for required fields, use current date
-          const now = new Date();
-          const oneMonthFromNow = new Date();
-          oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
-
-          // Create subscription record
-          const newSubscription = await Subscription.create({
-            user: user._id,
-            name: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Subscription`,
-            stripeCustomerId: user.stripeCustomerId,
-            stripeSubscriptionId: stripeSub.id,
-            subscriptionType: plan,
-            status: stripeSub.status,
-            isActive: false, // Not active by default
-            currentPeriodStart: currentPeriodStart || now,
-            currentPeriodEnd: currentPeriodEnd || oneMonthFromNow,
-            cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
-            trialStart: trialStart,
-            trialEnd: trialEnd,
-          });
-
-          // Add to user's subscriptions array if not already there
-          if (!user.subscriptions) {
-            user.subscriptions = [];
-          }
-
-          user.subscriptions.push(newSubscription._id as any);
-          newSubscriptionsAdded.push(newSubscription);
-        } catch (error) {
-          console.error(`Error creating subscription record for ${stripeSub.id}:`, error);
-          // Continue with the next subscription instead of failing the entire sync
-        }
-      }
-    }
-
-    // Save user if we added any subscriptions
-    if (newSubscriptionsAdded.length > 0) {
-      await user.save();
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `Sync complete. Added ${newSubscriptionsAdded.length} subscriptions.`,
-      newSubscriptions: newSubscriptionsAdded,
-      stripeSubscriptionsCount: stripeSubscriptions.data.length,
-      dbSubscriptionsCount: dbSubscriptions.length,
-    });
-  } catch (err) {
-    console.error('Error syncing subscriptions:', err);
-    next(err);
-  }
-};
 
 // @desc    Get credit transaction history
 // @route   GET /api/subscription/credits/history
@@ -1282,7 +1147,7 @@ export const purchaseCredits = async (
         creditPackage,
         credits: packageDetails.credits.toString(),
       },
-      success_url: `${req.headers.origin}/subscription/success?type=credits&package=${creditPackage}`,
+      success_url: `${req.headers.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}&type=credits&package=${creditPackage}`,
       cancel_url: `${req.headers.origin}/subscription/cancel`,
     });
 

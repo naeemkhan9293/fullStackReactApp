@@ -140,13 +140,7 @@ export interface CreditPurchaseResponse {
   };
 }
 
-export interface SyncSubscriptionsResponse {
-  success: boolean;
-  message: string;
-  newSubscriptions: SubscriptionDetails[];
-  stripeSubscriptionsCount: number;
-  dbSubscriptionsCount: number;
-}
+
 
 export const subscriptionApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -210,13 +204,7 @@ export const subscriptionApi = baseApi.injectEndpoints({
         body: data,
       }),
     }),
-    syncSubscriptions: builder.mutation<SyncSubscriptionsResponse, void>({
-      query: () => ({
-        url: '/subscription/sync',
-        method: 'POST',
-      }),
-      invalidatesTags: ['User', 'Subscriptions'],
-    }),
+
   }),
 });
 
@@ -232,5 +220,4 @@ export const {
   useResumeSubscriptionMutation,
   useGetCreditHistoryQuery,
   usePurchaseCreditsMutation,
-  useSyncSubscriptionsMutation,
 } = subscriptionApi;

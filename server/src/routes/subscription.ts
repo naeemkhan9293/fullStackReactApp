@@ -12,7 +12,6 @@ import {
   purchaseCredits,
   debugAllSubscriptions,
   createTestSubscription,
-  syncSubscriptions,
 } from '../controllers/subscription';
 import { protect } from '../middleware/auth';
 import { checkAccess } from '../middleware/accessControl';
@@ -34,6 +33,6 @@ router.get('/credits/history', protect, getCreditHistory);
 router.get('/debug', protect, debugAllSubscriptions);
 router.post('/debug/create', protect, createTestSubscription);
 router.post('/credits/purchase', protect, purchaseCredits);
-router.post('/sync', protect, syncSubscriptions);
+
 
 export { router };

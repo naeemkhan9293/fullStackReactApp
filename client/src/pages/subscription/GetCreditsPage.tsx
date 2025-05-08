@@ -16,8 +16,7 @@ import {
   useDebugSubscriptionsQuery,
   useCreateTestSubscriptionMutation,
   useActivateSubscriptionMutation,
-  usePurchaseCreditsMutation,
-  useSyncSubscriptionsMutation
+  usePurchaseCreditsMutation
 } from '@/store/api/subscriptionApi';
 
 const GetCreditsPage = () => {
@@ -71,8 +70,7 @@ const GetCreditsPage = () => {
   // Purchase credits mutation
   const [purchaseCredits, { isLoading: isPurchasingCredits }] = usePurchaseCreditsMutation();
 
-  // Sync subscriptions mutation
-  const [syncSubscriptions, { isLoading: isSyncing }] = useSyncSubscriptionsMutation();
+
 
   // Track which subscription is being activated
   const [activatingSubscriptionId, setActivatingSubscriptionId] = useState<string | null>(null);
@@ -590,29 +588,7 @@ const GetCreditsPage = () => {
             Refresh Subscription Data
           </Button>
 
-          <Button
-            variant="secondary"
-            onClick={async () => {
-              try {
-                toast.info('Syncing subscriptions with Stripe...');
-                const result = await syncSubscriptions().unwrap();
-                toast.success(`Sync complete. Added ${result.newSubscriptions.length} subscriptions.`);
-                refetchSubscriptions();
-                refetchDebugData();
-              } catch (error: any) {
-                console.error('Error syncing subscriptions:', error);
-                toast.error('Failed to sync subscriptions with Stripe');
-              }
-            }}
-            disabled={isSyncing}
-          >
-            {isSyncing ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
-            )}
-            Sync with Stripe
-          </Button>
+
 
           <Button
             variant="outline"

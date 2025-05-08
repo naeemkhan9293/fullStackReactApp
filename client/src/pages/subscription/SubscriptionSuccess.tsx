@@ -63,7 +63,9 @@ const SubscriptionSuccess = () => {
       setError(null);
 
       try {
-        if (sessionId) {
+        // For credit purchases, we check for the package parameter
+        // For subscriptions, we check for the sessionId
+        if ((isCreditPurchase && creditPackage) || sessionId) {
           // Determine which data to fetch based on purchase type
           if (isCreditPurchase) {
             // For credit purchases, we only need user subscription and credit history
@@ -84,6 +86,10 @@ const SubscriptionSuccess = () => {
           setTimeout(() => {
             setIsLoading(false);
           }, 1000);
+        } else {
+          // If we don't have the required parameters, show an error
+          setError('Missing transaction information. Please check your account dashboard.');
+          setIsLoading(false);
         }
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -93,7 +99,7 @@ const SubscriptionSuccess = () => {
     };
 
     fetchData();
-  }, [sessionId, isCreditPurchase, refetchSubscription, refetchAllSubscriptions, refetchCreditHistory]);
+  }, [sessionId, isCreditPurchase, creditPackage, refetchSubscription, refetchAllSubscriptions, refetchCreditHistory]);
 
   // Find the active subscription
   const activeSubscription = subscriptionData?.data;
@@ -110,7 +116,10 @@ const SubscriptionSuccess = () => {
 
   // Get subscription details
   const subscriptionType = subscription?.subscriptionType || 'regular';
-  const isTrialing = subscription?.status === 'trialing' || activeSubscription?.subscriptionStatus === 'trialing';
+  // Handle different subscription object structures
+  const isTrialing =
+    (subscription && 'status' in subscription && subscription.status === 'trialing') ||
+    activeSubscription?.subscriptionStatus === 'trialing';
 
   // Find the most recent credit transaction (for credit purchases)
   const latestCreditTransaction = creditHistoryData?.data[0];
@@ -202,7 +211,7 @@ const SubscriptionSuccess = () => {
           </CardTitle>
           <CardDescription>
             {isCreditPurchase
-              ? `Thank you for purchasing the ${creditPackage?.charAt(0).toUpperCase() + creditPackage?.slice(1) || ''} credit package`
+              ? `Thank you for purchasing the ${creditPackage ? creditPackage.charAt(0).toUpperCase() + creditPackage.slice(1) : 'credit'} package`
               : `Thank you for subscribing to our ${subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1)} plan`
             }
           </CardDescription>
@@ -232,7 +241,7 @@ const SubscriptionSuccess = () => {
           </p>
 
           {!isCreditPurchase && newSubscription && activeSubscription &&
-           newSubscription.id !== activeSubscription.stripeSubscriptionId && (
+           newSubscription.id !== (activeSubscription.stripeSubscriptionId || activeSubscription.stripeSubscription) && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
               <p className="text-blue-800 font-medium mb-2">
                 You now have multiple subscriptions!
