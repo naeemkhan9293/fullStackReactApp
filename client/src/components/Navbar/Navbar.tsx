@@ -12,6 +12,9 @@ const Navbar = () => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const user = useSelector(selectCurrentUser);
 
+  // Check if user is a provider or admin
+  const isProviderOrAdmin = user?.role === "provider" || user?.role === "admin";
+
   return (
     <header className="border-b">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -22,7 +25,8 @@ const Navbar = () => {
         <div className="flex items-center gap-5">
           {isAuthenticated && user ? (
             <>
-              <UserCredits />
+              {/* Only show credits dropdown to providers and admins */}
+              {isProviderOrAdmin && <UserCredits />}
               <UserProfile />
             </>
           ) : (

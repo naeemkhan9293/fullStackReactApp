@@ -29,6 +29,14 @@ ac.grant('customer')
   .readOwn('savedService')
   .deleteOwn('savedService')
 
+  // Payment permissions
+  .createOwn('payment')
+  .readOwn('payment')
+
+  // Wallet permissions
+  .readOwn('wallet')
+  .updateOwn('wallet')
+
   // Customer dashboard permissions
   .readOwn('customerDashboard');
 
@@ -45,6 +53,10 @@ ac.grant('provider')
   .readOwn('providerBooking')
   .updateOwn('providerBooking')
   .readOwn('booking') // Allow providers to read bookings they're assigned to
+
+  // Wallet permissions
+  .readOwn('wallet')
+  .updateOwn('wallet')
 
   // Dashboard permissions
   .readOwn('providerDashboard');
@@ -71,6 +83,13 @@ ac.grant('admin')
 
   .readAny('savedService')
   .deleteAny('savedService')
+
+  .createAny('payment')
+  .readAny('payment')
+  .updateAny('payment')
+
+  .readAny('wallet')
+  .updateAny('wallet')
 
   .readAny('providerDashboard')
   .readAny('customerDashboard');

@@ -2,7 +2,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useSelector } from "react-redux";
-import { LogOut, User, LayoutDashboard, Briefcase, Calendar, Clock, Star, Settings, CreditCard } from "lucide-react";
+import { LogOut, User, LayoutDashboard, Briefcase, Calendar, Clock, Star, Settings, CreditCard, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { selectCurrentUser } from "@/store/slices/authSlice";
 import { useLogoutMutation } from "@/store/api/authApi";
@@ -33,6 +33,7 @@ const UserLayout = () => {
     { name: "Dashboard", path: "/user/dashboard", icon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
     { name: "My Services", path: "/user/my-services", icon: <Briefcase className="mr-2 h-4 w-4" /> },
     { name: "My Bookings", path: "/user/my-bookings", icon: <Calendar className="mr-2 h-4 w-4" /> },
+    { name: "My Wallet", path: "/user/wallet", icon: <Wallet className="mr-2 h-4 w-4" /> },
     { name: "Subscription", path: "/user/subscription", icon: <CreditCard className="mr-2 h-4 w-4" /> },
     { name: "Profile", path: "/user/profile", icon: <Settings className="mr-2 h-4 w-4" /> },
   ];
@@ -41,8 +42,8 @@ const UserLayout = () => {
     { name: "Dashboard", path: "/user/dashboard", icon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
     { name: "My Bookings", path: "/user/my-bookings", icon: <Calendar className="mr-2 h-4 w-4" /> },
     { name: "Booking History", path: "/user/history", icon: <Clock className="mr-2 h-4 w-4" /> },
+    { name: "My Wallet", path: "/user/wallet", icon: <Wallet className="mr-2 h-4 w-4" /> },
     { name: "Saved Services", path: "/user/saved", icon: <Star className="mr-2 h-4 w-4" /> },
-    { name: "Subscription", path: "/user/subscription", icon: <CreditCard className="mr-2 h-4 w-4" /> },
     { name: "Profile", path: "/user/profile", icon: <Settings className="mr-2 h-4 w-4" /> },
   ];
 

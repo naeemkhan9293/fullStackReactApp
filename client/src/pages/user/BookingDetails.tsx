@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
-import { Loader2, Calendar, Clock, MapPin, FileText, User, Phone, Mail, ArrowLeft, CheckCircle, CheckSquare } from "lucide-react";
+import { Loader2, Calendar, Clock, MapPin, FileText, User, Phone, Mail, ArrowLeft, CheckCircle, CheckSquare, CreditCard, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import { RootState } from "@/store/store";
 
 const BookingDetails = () => {
   const { id = "" } = useParams<{ id: string }>();
-  // No need for navigate in this component
+  const navigate = useNavigate();
 
   // State for dialogs
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -164,6 +164,24 @@ const BookingDetails = () => {
     }
   };
 
+  // Get payment status badge
+  const getPaymentStatusBadge = (status: string) => {
+    switch (status) {
+      case "paid":
+        return <Badge className="bg-green-500 ml-2">Paid</Badge>;
+      case "unpaid":
+        return <Badge variant="outline" className="border-orange-200 text-orange-700 ml-2">Unpaid</Badge>;
+      case "processing":
+        return <Badge variant="outline" className="border-blue-200 text-blue-700 ml-2">Processing</Badge>;
+      case "refunded":
+        return <Badge variant="outline" className="border-purple-200 text-purple-700 ml-2">Refunded</Badge>;
+      case "failed":
+        return <Badge variant="destructive" className="ml-2">Payment Failed</Badge>;
+      default:
+        return null;
+    }
+  };
+
   // Check if booking can be cancelled
   const canCancel = booking.status === "pending" || booking.status === "confirmed";
 
@@ -187,7 +205,10 @@ const BookingDetails = () => {
 
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Booking Details</h1>
-        {getStatusBadge(booking.status)}
+        <div className="flex items-center">
+          {getStatusBadge(booking.status)}
+          {getPaymentStatusBadge(booking.paymentStatus)}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -245,6 +266,72 @@ const BookingDetails = () => {
             </CardFooter>
           </Card>
 
+          {/* Payment Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <CreditCard className="mr-2 h-5 w-5" />
+                Payment Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="font-medium">Payment Status</p>
+                  <div className="flex items-center mt-1">
+                    {getPaymentStatusBadge(booking.paymentStatus)}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-medium">Amount</p>
+                  <p className="text-lg font-bold">${booking.price.toFixed(2)}</p>
+                </div>
+              </div>
+
+              {/* Payment actions for customer */}
+              {!isProvider && booking.paymentStatus === 'unpaid' && (
+                <div className="mt-4">
+                  <Button
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    onClick={() => navigate(`/marketplace/payment/${booking._id}`)}
+                  >
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Pay Now
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                    Your payment is secure and will be held until the service is completed.
+                  </p>
+                </div>
+              )}
+
+              {booking.paymentStatus === 'processing' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-2">
+                  <div className="flex items-center">
+                    <Loader2 className="h-4 w-4 text-blue-500 mr-2 animate-spin" />
+                    <p className="text-blue-700 text-sm">Your payment is being processed.</p>
+                  </div>
+                </div>
+              )}
+
+              {booking.paymentStatus === 'failed' && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3 mt-2">
+                  <div className="flex items-center">
+                    <AlertCircle className="h-4 w-4 text-red-500 mr-2" />
+                    <p className="text-red-700 text-sm">Payment failed. Please try again.</p>
+                  </div>
+                  {!isProvider && (
+                    <Button
+                      className="w-full mt-2 bg-red-600 hover:bg-red-700"
+                      onClick={() => navigate(`/marketplace/payment/${booking._id}`)}
+                    >
+                      Retry Payment
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Actions */}
           {isUpcoming && (
             <Card>
@@ -266,7 +353,7 @@ const BookingDetails = () => {
                           Accept Booking
                         </Button>
                       )}
-                      {canComplete && (
+                      {canComplete && booking.paymentStatus === 'paid' && (
                         <Button
                           variant="default"
                           className="bg-blue-600 hover:bg-blue-700"
@@ -276,13 +363,23 @@ const BookingDetails = () => {
                           Mark as Complete
                         </Button>
                       )}
+                      {canComplete && booking.paymentStatus !== 'paid' && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 w-full">
+                          <div className="flex items-center">
+                            <AlertCircle className="h-4 w-4 text-yellow-500 mr-2" />
+                            <p className="text-yellow-700 text-sm">
+                              Waiting for customer payment before service can be completed.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
 
                   {/* Customer-specific actions */}
                   {!isProvider && (
                     <>
-                      {canCancel && (
+                      {canCancel && booking.paymentStatus !== 'paid' && (
                         <Button
                           variant="outline"
                           className="border-red-200 text-red-600 hover:bg-red-50"

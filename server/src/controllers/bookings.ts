@@ -198,31 +198,14 @@ export const createBooking = async (
       });
     }
 
-    // Check if user has enough credits (minimum 5 credits required)
-    const REQUIRED_CREDITS = 5;
-    const hasCredits = await hasEnoughCredits(req.user.id, REQUIRED_CREDITS);
-
-    if (!hasCredits) {
-      return res.status(400).json({
-        success: false,
-        error: "Insufficient credits",
-        requiredCredits: REQUIRED_CREDITS,
-      });
-    }
-
     // Add provider to req.body
     req.body.provider = service.provider;
 
-    // Create the booking
-    const booking = await Booking.create(req.body);
-
-    // Deduct credits from user
-    await deductCredits(
-      req.user.id,
-      REQUIRED_CREDITS,
-      `Booking for ${service.name}`,
-      booking.id
-    );
+    // Create the booking with unpaid payment status
+    const booking = await Booking.create({
+      ...req.body,
+      paymentStatus: 'unpaid'
+    });
 
     res.status(201).json({
       success: true,
@@ -242,7 +225,7 @@ export const updateBookingStatus = async (
   next: NextFunction
 ) => {
   try {
-    let booking = await Booking.findById(req.params.id);
+    let booking = await Booking.findById(req.params.id).populate('paymentId');
 
     if (!booking) {
       return res.status(404).json({
@@ -269,6 +252,14 @@ export const updateBookingStatus = async (
           error: "Customers can only cancel bookings",
         });
       }
+
+      // Check if payment has been made
+      if (booking.paymentStatus === 'paid' && status === 'cancelled') {
+        return res.status(400).json({
+          success: false,
+          error: "Cannot cancel a booking that has been paid. Please contact support.",
+        });
+      }
     }
 
     // Providers can confirm, complete, or cancel bookings for their services
@@ -286,6 +277,14 @@ export const updateBookingStatus = async (
           error: "Providers can only confirm, complete, or cancel bookings",
         });
       }
+
+      // Check if payment has been made before allowing completion
+      if (status === 'completed' && booking.paymentStatus !== 'paid') {
+        return res.status(400).json({
+          success: false,
+          error: "Cannot mark as completed until customer has paid",
+        });
+      }
     }
 
     // Update booking
@@ -297,6 +296,51 @@ export const updateBookingStatus = async (
         runValidators: true,
       }
     );
+
+    // If booking is marked as completed, release payment to provider
+    if (status === 'completed' && booking && booking.paymentStatus === 'paid') {
+      // Import the Payment model and releasePayment function
+      const Payment = require('../models/Payment').default;
+      const Wallet = require('../models/Wallet').default;
+      const Transaction = require('../models/Transaction').default;
+
+      if (booking.paymentId) {
+        const payment = await Payment.findById(booking.paymentId);
+
+        if (payment && payment.status === 'held') {
+          // Find or create provider wallet
+          let wallet = await Wallet.findOne({ user: payment.provider });
+
+          if (!wallet) {
+            wallet = await Wallet.create({
+              user: payment.provider,
+              balance: 0,
+              isActive: true,
+            });
+          }
+
+          // Update wallet balance
+          wallet.balance += payment.amount;
+          await wallet.save();
+
+          // Create transaction record
+          await Transaction.create({
+            wallet: wallet._id,
+            user: payment.provider,
+            amount: payment.amount,
+            type: 'service_payment',
+            status: 'completed',
+            booking: booking._id,
+            description: `Payment for booking #${booking._id}`,
+          });
+
+          // Update payment status
+          payment.status = 'released';
+          payment.releaseDate = new Date();
+          await payment.save();
+        }
+      }
+    }
 
     res.status(200).json({
       success: true,

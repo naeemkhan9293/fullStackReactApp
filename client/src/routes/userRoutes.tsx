@@ -9,7 +9,19 @@ import EditService from "@/pages/user/EditService";
 import History from "@/pages/user/History";
 import SavedServicesPage from "@/pages/user/SavedServicesPage";
 import SubscriptionManagement from "@/pages/subscription/SubscriptionManagement";
+import ProviderWalletPage from "@/pages/provider/WalletPage";
+import CustomerWalletPage from "@/pages/customer/CustomerWalletPage";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
+
+// Component to select the appropriate wallet page based on user role
+const WalletSelector = () => {
+  const { user } = useSelector((state: RootState) => state.auth);
+  const isProvider = user?.role === 'provider';
+
+  return isProvider ? <ProviderWalletPage /> : <CustomerWalletPage />;
+};
 
 export const userRoutes = [
   {
@@ -29,6 +41,12 @@ export const userRoutes = [
           { path: "history", element: <History /> },
           { path: "saved", element: <SavedServicesPage /> },
           { path: "subscription", element: <SubscriptionManagement /> },
+          {
+            path: "wallet",
+            element: (
+              <WalletSelector />
+            )
+          },
         ],
       },
     ],

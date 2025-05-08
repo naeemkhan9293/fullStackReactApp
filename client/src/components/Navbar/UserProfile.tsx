@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User, Settings, Briefcase } from "lucide-react";
+import { LogOut, User, Settings, Briefcase, Wallet } from "lucide-react";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/slices/authSlice";
 import { useLogoutMutation } from "@/store/api/authApi";
@@ -94,6 +94,13 @@ const UserProfile = () => {
           <Settings className="mr-2 h-4 w-4" />
           <span>Profile</span>
         </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => navigate("/user/wallet")}
+        >
+          <Wallet className="mr-2 h-4 w-4" />
+          <span>My Wallet</span>
+        </DropdownMenuItem>
+
         {user?.role === "provider" && (
           <DropdownMenuItem
             onClick={() => navigate("/user/my-services")}

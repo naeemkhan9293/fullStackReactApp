@@ -26,6 +26,8 @@ export interface Booking {
   address: string;
   notes?: string;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  paymentStatus: 'unpaid' | 'processing' | 'paid' | 'refunded' | 'failed';
+  paymentId?: string;
   createdAt: string;
   updatedAt: string;
 }

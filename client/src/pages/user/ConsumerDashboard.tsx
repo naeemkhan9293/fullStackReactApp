@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarClock, Clock, Loader2, CreditCard, Sparkles } from "lucide-react";
+import { CalendarClock, Clock, Loader2, Wallet, Sparkles } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   useGetDashboardStatsQuery,
@@ -9,6 +9,7 @@ import {
   useGetRecentBookingsQuery
 } from "@/store/api/dashboardApi";
 import { useGetUserSubscriptionQuery } from "@/store/api/subscriptionApi";
+import { useGetWalletQuery } from "@/store/api/walletApi";
 
 const ConsumerDashboard = () => {
   // Fetch dashboard stats
@@ -22,6 +23,9 @@ const ConsumerDashboard = () => {
 
   // Fetch user subscription
   const { data: subscriptionData, isLoading: isSubscriptionLoading } = useGetUserSubscriptionQuery();
+
+  // Fetch user wallet
+  const { data: walletData, isLoading: isWalletLoading } = useGetWalletQuery();
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -92,21 +96,21 @@ const ConsumerDashboard = () => {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Available Credits</CardTitle>
+            <CardTitle className="text-sm font-medium">Wallet Balance</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center">
-              <CreditCard className="h-5 w-5 text-primary mr-2" />
+              <Wallet className="h-5 w-5 text-primary mr-2" />
               <div className="text-2xl font-bold">
-                {isSubscriptionLoading ? (
+                {isWalletLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  subscriptionData?.data.credits || 0
+                  `$${walletData?.data?.balance?.toFixed(2) || '0.00'}`
                 )}
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              <Link to="/user/subscription" className="text-primary hover:underline">Manage subscription</Link>
+              <Link to="/user/wallet" className="text-primary hover:underline">Manage wallet</Link>
             </p>
           </CardContent>
         </Card>
@@ -279,11 +283,9 @@ const ConsumerDashboard = () => {
         <Button variant="outline" className="flex-1" asChild>
           <Link to="/user/my-bookings">Manage Bookings</Link>
         </Button>
-        {subscriptionData?.data.subscriptionType === 'none' && (
-          <Button variant="outline" className="flex-1 border-primary text-primary" asChild>
-            <Link to="/subscription/plans">Get Subscription</Link>
-          </Button>
-        )}
+        <Button variant="outline" className="flex-1 border-green-500 text-green-600 hover:bg-green-50" asChild>
+          <Link to="/user/wallet">Add Money to Wallet</Link>
+        </Button>
       </div>
     </div>
   );

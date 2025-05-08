@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Briefcase, Calendar, Clock, DollarSign, Loader2, Star } from "lucide-react";
+import { Briefcase, Calendar, Clock, DollarSign, Loader2, Star, Wallet } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
   useGetProviderDashboardStatsQuery,
@@ -156,7 +156,12 @@ const ProviderDashboard = () => {
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Lifetime earnings
+              <Link
+                to="/user/wallet"
+                className="text-primary hover:underline"
+              >
+                View wallet
+              </Link>
             </p>
           </CardContent>
         </Card>
@@ -282,7 +287,16 @@ const ProviderDashboard = () => {
       {/* Quick Actions */}
       <div className="flex flex-col sm:flex-row gap-4">
         <Button className="flex-1 py-6 text-base" asChild>
-          <Link to="/user/create-service">Create New Service</Link>
+          <Link to="/user/create-service">
+            <Briefcase className="mr-2 h-5 w-5" />
+            Create New Service
+          </Link>
+        </Button>
+        <Button variant="outline" className="flex-1 py-6 text-base" asChild>
+          <Link to="/user/wallet">
+            <Wallet className="mr-2 h-5 w-5" />
+            Manage Wallet
+          </Link>
         </Button>
         <Button variant="outline" className="flex-1 py-6 text-base" asChild>
           <Link to="/marketplace">Browse Services</Link>

@@ -6,6 +6,8 @@ import { router as reviewRoutes } from './reviews';
 import { router as uploadRoutes } from './upload';
 import { router as dashboardRoutes } from './dashboard';
 import { router as subscriptionRoutes } from './subscription';
+import { router as paymentRoutes } from './payment';
+import { router as walletRoutes } from './wallet';
 import savedServicesRoutes from './savedServices';
 
 const router = express.Router();
@@ -23,6 +25,8 @@ router.use('/reviews', reviewRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/subscription', subscriptionRoutes);
+router.use('/payments', paymentRoutes);
+router.use('/wallet', walletRoutes);
 router.use('/saved-services', savedServicesRoutes);
 
 export { router };

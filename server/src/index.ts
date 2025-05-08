@@ -21,7 +21,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 // Create a raw body parser for Stripe webhooks
 app.use(
-  '/api/subscription/webhook',
+  ['/api/subscription/webhook', '/api/payments/webhook'],
   express.raw({ type: 'application/json', limit: '10mb' })
 );
 
