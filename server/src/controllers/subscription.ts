@@ -62,7 +62,7 @@ export const getSubscriptionPlans = async (
   }
 };
 
-// @desc    Get user subscription
+// @desc    Get user active subscription
 // @route   GET /api/subscription
 // @access  Private
 export const getUserSubscription = async (
@@ -118,6 +118,177 @@ export const getUserSubscription = async (
   }
 };
 
+// @desc    Get all user subscriptions
+// @route   GET /api/subscription/all
+// @access  Private
+export const getAllUserSubscriptions = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const user = await User.findById(req.user?.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    // Get all subscriptions for the user
+    const subscriptions = await Subscription.find({ user: user._id }).sort({
+      createdAt: -1,
+    });
+
+    console.log('Found subscriptions:', subscriptions);
+
+    // Get details from Stripe for each subscription
+    const subscriptionsWithDetails = await Promise.all(
+      subscriptions.map(async (sub) => {
+        let stripeData = null;
+        try {
+          const stripeSub = await stripe.subscriptions.retrieve(
+            sub.stripeSubscriptionId
+          );
+          stripeData = {
+            status: stripeSub.status,
+            currentPeriodEnd: new Date(
+              (stripeSub as any).current_period_end * 1000
+            ),
+            cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+          };
+        } catch (error) {
+          console.error(
+            `Error retrieving subscription ${sub.stripeSubscriptionId} from Stripe:`,
+            error
+          );
+        }
+
+        return {
+          id: sub._id,
+          name: sub.name,
+          subscriptionType: sub.subscriptionType,
+          status: sub.status,
+          isActive: sub.isActive,
+          currentPeriodStart: sub.currentPeriodStart,
+          currentPeriodEnd: sub.currentPeriodEnd,
+          cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+          trialEnd: sub.trialEnd,
+          stripeSubscriptionId: sub.stripeSubscriptionId,
+          stripeData,
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      count: subscriptions.length,
+      data: subscriptionsWithDetails,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Activate a specific subscription
+// @route   POST /api/subscription/activate/:id
+// @access  Private
+export const activateSubscription = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(req.user?.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    // Find the subscription to activate
+    const subscriptionToActivate = await Subscription.findOne({
+      _id: id,
+      user: user._id,
+    });
+
+    if (!subscriptionToActivate) {
+      return res.status(404).json({
+        success: false,
+        error: "Subscription not found",
+      });
+    }
+
+    // Check if subscription is valid in Stripe
+    try {
+      const stripeSubscription = await stripe.subscriptions.retrieve(
+        subscriptionToActivate.stripeSubscriptionId
+      );
+
+      if (
+        stripeSubscription.status !== "active" &&
+        stripeSubscription.status !== "trialing"
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "Cannot activate a non-active subscription",
+        });
+      }
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid subscription in Stripe",
+      });
+    }
+
+    // Deactivate the current active subscription
+    if (user.stripeSubscriptionId) {
+      await Subscription.findOneAndUpdate(
+        { stripeSubscriptionId: user.stripeSubscriptionId },
+        { isActive: false }
+      );
+    }
+
+    // Activate the new subscription
+    subscriptionToActivate.isActive = true;
+    await subscriptionToActivate.save();
+
+    // Update user with the new active subscription
+    user.stripeSubscriptionId = subscriptionToActivate.stripeSubscriptionId;
+    user.subscriptionType = subscriptionToActivate.subscriptionType;
+    user.subscriptionStatus = subscriptionToActivate.status;
+
+    // Update trial end date if applicable
+    if (subscriptionToActivate.trialEnd) {
+      user.trialEndsAt = subscriptionToActivate.trialEnd;
+    }
+
+    // Update next billing date
+    user.nextBillingDate = subscriptionToActivate.currentPeriodEnd;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        message: "Subscription activated successfully",
+        subscription: {
+          id: subscriptionToActivate._id,
+          name: subscriptionToActivate.name,
+          subscriptionType: subscriptionToActivate.subscriptionType,
+          status: subscriptionToActivate.status,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // @desc    Create checkout session for subscription
 // @route   POST /api/subscription/checkout
 // @access  Private
@@ -145,16 +316,7 @@ export const createCheckoutSession = async (
       });
     }
 
-    // Check if user already has an active subscription
-    if (
-      user.subscriptionStatus === "active" ||
-      user.subscriptionStatus === "trialing"
-    ) {
-      return res.status(400).json({
-        success: false,
-        error: "User already has an active subscription",
-      });
-    }
+    // We now allow multiple subscriptions, so this check is removed
 
     // Create or retrieve Stripe customer
     let customer;
@@ -178,7 +340,20 @@ export const createCheckoutSession = async (
     const planDetails =
       SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS];
     console.log(planDetails);
-    
+
+    // Check if user has already had a trial
+    const hasHadTrial = user.subscriptionStatus === 'active' ||
+                        user.subscriptionStatus === 'trialing' ||
+                        user.subscriptionStatus === 'canceled' ||
+                        await Subscription.exists({ user: user._id });
+
+    console.log('User has had trial:', hasHadTrial);
+
+    // Create a unique identifier for this subscription
+    const subscriptionReference = `sub_ref_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+
+    console.log(`Creating checkout session with reference: ${subscriptionReference}`);
+
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,
@@ -191,13 +366,21 @@ export const createCheckoutSession = async (
       ],
       mode: "subscription",
       subscription_data: {
-        trial_period_days: planDetails.trialDays,
+        // Only include trial period if user hasn't had a trial before
+        ...(hasHadTrial ? {} : { trial_period_days: planDetails.trialDays }),
         metadata: {
           userId: user.id,
           plan,
+          hasHadTrial: hasHadTrial ? 'true' : 'false',
+          subscriptionReference,
         },
       },
-      success_url: `${req.headers.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+      metadata: {
+        userId: user.id,
+        plan,
+        subscriptionReference,
+      },
+      success_url: `${req.headers.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}&ref=${subscriptionReference}`,
       cancel_url: `${req.headers.origin}/subscription/cancel`,
     });
 
@@ -240,23 +423,32 @@ export const handleWebhook = async (
   }
 
   // Handle the event
+  console.log(`Received webhook event: ${event.type}`);
+  console.log('Event data:', JSON.stringify(event.data.object, null, 2));
+
   switch (event.type) {
     case "customer.subscription.created":
+      console.log('Handling subscription created event');
       await handleSubscriptionCreated(event.data.object);
       break;
     case "customer.subscription.updated":
+      console.log('Handling subscription updated event');
       await handleSubscriptionUpdated(event.data.object);
       break;
     case "customer.subscription.deleted":
+      console.log('Handling subscription deleted event');
       await handleSubscriptionDeleted(event.data.object);
       break;
     case "invoice.payment_succeeded":
+      console.log('Handling invoice payment succeeded event');
       await handleInvoicePaymentSucceeded(event.data.object);
       break;
     case "invoice.payment_failed":
+      console.log('Handling invoice payment failed event');
       await handleInvoicePaymentFailed(event.data.object);
       break;
     case "checkout.session.completed":
+      console.log('Handling checkout session completed event');
       await handleCheckoutSessionCompleted(event.data.object);
       break;
     default:
@@ -268,11 +460,13 @@ export const handleWebhook = async (
 
 // Helper function to handle subscription created event
 const handleSubscriptionCreated = async (subscription: Stripe.Subscription) => {
+  console.log('Handling subscription created event', subscription);
   try {
     const customerId = subscription.customer;
     const subscriptionId = subscription.id;
     const status = subscription.status;
     const plan = subscription.metadata.plan || "regular";
+    const hasHadTrial = subscription.metadata.hasHadTrial === 'true';
 
     // Find user by Stripe customer ID
     const user = await User.findOne({ stripeCustomerId: customerId });
@@ -280,6 +474,86 @@ const handleSubscriptionCreated = async (subscription: Stripe.Subscription) => {
     if (!user) {
       console.error(`User not found for Stripe customer ID: ${customerId}`);
       return;
+    }
+
+    // Get plan details
+    const planDetails =
+      SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS];
+
+    // Check if subscription already exists in database
+    const existingSubscription = await Subscription.findOne({
+      stripeSubscriptionId: subscriptionId
+    });
+
+    // If subscription already exists, don't create a duplicate
+    if (existingSubscription) {
+      console.log(`Subscription already exists in database: ${subscriptionId}`);
+      console.log(`Existing subscription ID: ${existingSubscription._id}`);
+
+      // Make sure the subscription is in the user's subscriptions array
+      if (!user.subscriptions) {
+        user.subscriptions = [];
+      }
+
+      const subscriptionExists = user.subscriptions.some(
+        (subId) => subId.toString() === existingSubscription._id?.toString()
+      );
+
+      if (!subscriptionExists) {
+        console.log(`Adding existing subscription ${existingSubscription._id} to user's subscriptions array`);
+        user.subscriptions.push(existingSubscription._id as any);
+        await user.save();
+      }
+
+      return; // Exit early to prevent duplicate creation
+    }
+
+    // Check if user already has a subscription with the same plan
+    // If the plan is different, we'll create a new subscription
+    const existingPlanSubscription = await Subscription.findOne({
+      user: user._id,
+      subscriptionType: plan
+    });
+
+    if (existingPlanSubscription) {
+      console.log(`User already has a ${plan} subscription: ${existingPlanSubscription._id}`);
+      console.log(`Creating new subscription anyway since it has a different Stripe ID`);
+    }
+
+    console.log(`Creating new subscription record for: ${subscriptionId}`);
+
+    // Create subscription record
+    const newSubscription = await Subscription.create({
+      user: user._id,
+      name: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Subscription`,
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: subscriptionId,
+      subscriptionType: plan,
+      status,
+      isActive: true, // Set this new subscription as active
+      currentPeriodStart: new Date(
+        (subscription as any).current_period_start * 1000
+      ),
+      currentPeriodEnd: new Date(
+        (subscription as any).current_period_end * 1000
+      ),
+      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      trialStart: subscription.trial_start
+        ? new Date(subscription.trial_start * 1000)
+        : undefined,
+      trialEnd: subscription.trial_end
+        ? new Date(subscription.trial_end * 1000)
+        : undefined,
+    });
+
+    console.log(`New subscription created with ID: ${newSubscription._id}`);
+
+    // If user already has an active subscription, deactivate it
+    if (user.stripeSubscriptionId) {
+      await Subscription.findOneAndUpdate(
+        { stripeSubscriptionId: user.stripeSubscriptionId },
+        { isActive: false }
+      );
     }
 
     // Update user subscription details
@@ -299,33 +573,24 @@ const handleSubscriptionCreated = async (subscription: Stripe.Subscription) => {
     );
 
     // Add initial credits based on plan
-    const planDetails =
-      SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS];
     user.credits += planDetails.initialCredits;
 
-    await user.save();
+    // Add subscription to user's subscriptions array
+    if (!user.subscriptions) {
+      user.subscriptions = [];
+    }
 
-    // Create subscription record
-    await Subscription.create({
-      user: user._id,
-      stripeCustomerId: customerId,
-      stripeSubscriptionId: subscriptionId,
-      subscriptionType: plan,
-      status,
-      currentPeriodStart: new Date(
-        (subscription as any).current_period_start * 1000
-      ),
-      currentPeriodEnd: new Date(
-        (subscription as any).current_period_end * 1000
-      ),
-      cancelAtPeriodEnd: subscription.cancel_at_period_end,
-      trialStart: subscription.trial_start
-        ? new Date(subscription.trial_start * 1000)
-        : undefined,
-      trialEnd: subscription.trial_end
-        ? new Date(subscription.trial_end * 1000)
-        : undefined,
-    });
+    // Check if subscription already exists in the array to avoid duplicates
+    const subscriptionExists = user.subscriptions.some(
+      (subId) => subId.toString() === newSubscription?._id?.toString()
+    );
+
+    if (!subscriptionExists) {
+      user.subscriptions.push(newSubscription._id as any);
+      console.log('Added subscription to user subscriptions array:', newSubscription._id);
+    }
+
+    await user.save();
 
     // Record credit transaction
     await CreditTransaction.create({
@@ -531,9 +796,9 @@ const handleCheckoutSessionCompleted = async (
   try {
     // Only process credit purchase sessions (one-time payments)
     if (session.mode === "payment" && session.metadata?.creditPackage) {
-      const customerId = session.customer;
+      // const customerId = session.customer; // Not used
       const userId = session.metadata.userId;
-      const creditPackage = session.metadata.creditPackage;
+      // const creditPackage = session.metadata.creditPackage; // Not used
       const creditsToAdd = parseInt(session.metadata.credits || "0");
 
       // Find user by ID
@@ -666,6 +931,233 @@ export const resumeSubscription = async (
       },
     });
   } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Create a test subscription (for debugging)
+// @route   POST /api/subscription/debug/create
+// @access  Private
+export const createTestSubscription = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { plan } = req.body;
+
+    if (!plan || !["regular", "premium"].includes(plan)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid subscription plan",
+      });
+    }
+
+    const user = await User.findById(req.user?.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    // Create a fake Stripe subscription ID
+    const fakeSubscriptionId = `test_sub_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+
+    // Create subscription record
+    const newSubscription = await Subscription.create({
+      user: user._id,
+      name: `Test ${plan.charAt(0).toUpperCase() + plan.slice(1)} Subscription`,
+      stripeCustomerId: user.stripeCustomerId || 'test_customer',
+      stripeSubscriptionId: fakeSubscriptionId,
+      subscriptionType: plan,
+      status: 'active',
+      isActive: false, // Not active by default
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      cancelAtPeriodEnd: false,
+    });
+
+    // Add subscription to user's subscriptions array
+    if (!user.subscriptions) {
+      user.subscriptions = [];
+    }
+
+    user.subscriptions.push(newSubscription._id as any);
+    await user.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Test subscription created successfully',
+      data: newSubscription,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Get all subscriptions in database (for debugging)
+// @route   GET /api/subscription/debug
+// @access  Private
+export const debugAllSubscriptions = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Get all subscriptions in the database
+    const allSubscriptions = await Subscription.find().sort({
+      createdAt: -1,
+    });
+
+    // Get the user's subscriptions array
+    const user = await User.findById(req.user?.id);
+
+    res.status(200).json({
+      success: true,
+      count: allSubscriptions.length,
+      userSubscriptionsArray: user?.subscriptions || [],
+      data: allSubscriptions,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Sync Stripe subscriptions with database
+// @route   POST /api/subscription/sync
+// @access  Private
+export const syncSubscriptions = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const user = await User.findById(req.user?.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    if (!user.stripeCustomerId) {
+      return res.status(400).json({
+        success: false,
+        error: "No Stripe customer ID found for this user",
+      });
+    }
+
+    console.log(`Syncing subscriptions for user: ${user._id} (${user.email})`);
+
+    // Get all subscriptions from Stripe for this customer
+    const stripeSubscriptions = await stripe.subscriptions.list({
+      customer: user.stripeCustomerId,
+      status: 'all',
+      expand: ['data.default_payment_method']
+    });
+
+    console.log(`Found ${stripeSubscriptions.data.length} subscriptions in Stripe`);
+
+    // Get all subscriptions from database for this user
+    const dbSubscriptions = await Subscription.find({ user: user._id });
+    console.log(`Found ${dbSubscriptions.length} subscriptions in database`);
+
+    // Track new subscriptions added
+    const newSubscriptionsAdded = [];
+
+    // Process each Stripe subscription
+    for (const stripeSub of stripeSubscriptions.data) {
+      // Check if this subscription exists in the database
+      const existingSubscription = dbSubscriptions.find(
+        (dbSub) => dbSub.stripeSubscriptionId === stripeSub.id
+      );
+
+      if (!existingSubscription) {
+        try {
+          console.log(`Adding missing subscription from Stripe: ${stripeSub.id}`);
+          console.log('Stripe subscription data:', JSON.stringify({
+            id: stripeSub.id,
+            status: stripeSub.status,
+            current_period_start: (stripeSub as any).current_period_start,
+            current_period_end: (stripeSub as any).current_period_end,
+            trial_start: stripeSub.trial_start,
+            trial_end: stripeSub.trial_end,
+            metadata: stripeSub.metadata
+          }, null, 2));
+
+          // Get plan from metadata or default to regular
+          const plan = stripeSub.metadata?.plan || "regular";
+
+          // Safely convert timestamps to dates with validation
+          const safelyCreateDate = (timestamp: number | null | undefined): Date | undefined => {
+            if (!timestamp) return undefined;
+
+            const date = new Date(timestamp * 1000);
+            // Validate the date is valid
+            if (isNaN(date.getTime())) {
+              console.warn(`Invalid timestamp: ${timestamp}`);
+              return undefined;
+            }
+            return date;
+          };
+
+          const currentPeriodStart = safelyCreateDate((stripeSub as any).current_period_start);
+          const currentPeriodEnd = safelyCreateDate((stripeSub as any).current_period_end);
+          const trialStart = safelyCreateDate(stripeSub.trial_start);
+          const trialEnd = safelyCreateDate(stripeSub.trial_end);
+
+          // If we don't have valid dates for required fields, use current date
+          const now = new Date();
+          const oneMonthFromNow = new Date();
+          oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+
+          // Create subscription record
+          const newSubscription = await Subscription.create({
+            user: user._id,
+            name: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Subscription`,
+            stripeCustomerId: user.stripeCustomerId,
+            stripeSubscriptionId: stripeSub.id,
+            subscriptionType: plan,
+            status: stripeSub.status,
+            isActive: false, // Not active by default
+            currentPeriodStart: currentPeriodStart || now,
+            currentPeriodEnd: currentPeriodEnd || oneMonthFromNow,
+            cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+            trialStart: trialStart,
+            trialEnd: trialEnd,
+          });
+
+          // Add to user's subscriptions array if not already there
+          if (!user.subscriptions) {
+            user.subscriptions = [];
+          }
+
+          user.subscriptions.push(newSubscription._id as any);
+          newSubscriptionsAdded.push(newSubscription);
+        } catch (error) {
+          console.error(`Error creating subscription record for ${stripeSub.id}:`, error);
+          // Continue with the next subscription instead of failing the entire sync
+        }
+      }
+    }
+
+    // Save user if we added any subscriptions
+    if (newSubscriptionsAdded.length > 0) {
+      await user.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Sync complete. Added ${newSubscriptionsAdded.length} subscriptions.`,
+      newSubscriptions: newSubscriptionsAdded,
+      stripeSubscriptionsCount: stripeSubscriptions.data.length,
+      dbSubscriptionsCount: dbSubscriptions.length,
+    });
+  } catch (err) {
+    console.error('Error syncing subscriptions:', err);
     next(err);
   }
 };

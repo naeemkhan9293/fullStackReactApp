@@ -18,7 +18,8 @@ export interface IUser extends Document {
   subscriptionType: 'none' | 'regular' | 'premium';
   subscriptionStatus: 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid' | 'incomplete' | 'incomplete_expired' | 'none';
   stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
+  stripeSubscriptionId?: string; // ID of the active subscription
+  subscriptions: mongoose.Types.ObjectId[] | any[]; // Array of all subscription IDs
   trialEndsAt?: Date;
   nextBillingDate?: Date;
   createdAt: Date;
@@ -93,6 +94,13 @@ const UserSchema = new Schema<IUser>(
     },
     stripeSubscriptionId: {
       type: String,
+    },
+    subscriptions: {
+      type: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Subscription',
+      }],
+      default: [],
     },
     trialEndsAt: {
       type: Date,

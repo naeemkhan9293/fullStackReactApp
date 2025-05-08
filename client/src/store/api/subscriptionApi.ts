@@ -31,6 +31,56 @@ export interface UserSubscription {
   };
 }
 
+export interface SubscriptionDetails {
+  id: string;
+  name: string;
+  subscriptionType: 'regular' | 'premium';
+  status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid' | 'incomplete' | 'incomplete_expired';
+  isActive: boolean;
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  cancelAtPeriodEnd: boolean;
+  trialEnd?: string;
+  stripeSubscriptionId: string;
+  stripeData?: {
+    status: string;
+    currentPeriodEnd: string;
+    cancelAtPeriodEnd: boolean;
+  };
+}
+
+export interface AllSubscriptionsResponse {
+  success: boolean;
+  count: number;
+  data: SubscriptionDetails[];
+}
+
+export interface DebugSubscriptionsResponse {
+  success: boolean;
+  count: number;
+  userSubscriptionsArray: string[];
+  data: SubscriptionDetails[];
+}
+
+export interface CreateTestSubscriptionResponse {
+  success: boolean;
+  message: string;
+  data: SubscriptionDetails;
+}
+
+export interface ActivateSubscriptionResponse {
+  success: boolean;
+  data: {
+    message: string;
+    subscription: {
+      id: string;
+      name: string;
+      subscriptionType: 'regular' | 'premium';
+      status: string;
+    };
+  };
+}
+
 export interface UserSubscriptionResponse {
   success: boolean;
   data: UserSubscription;
@@ -90,6 +140,14 @@ export interface CreditPurchaseResponse {
   };
 }
 
+export interface SyncSubscriptionsResponse {
+  success: boolean;
+  message: string;
+  newSubscriptions: SubscriptionDetails[];
+  stripeSubscriptionsCount: number;
+  dbSubscriptionsCount: number;
+}
+
 export const subscriptionApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getSubscriptionPlans: builder.query<SubscriptionPlansResponse, void>({
@@ -98,6 +156,28 @@ export const subscriptionApi = baseApi.injectEndpoints({
     getUserSubscription: builder.query<UserSubscriptionResponse, void>({
       query: () => '/subscription',
       providesTags: ['User'],
+    }),
+    getAllUserSubscriptions: builder.query<AllSubscriptionsResponse, void>({
+      query: () => '/subscription/all',
+      providesTags: ['Subscriptions'],
+    }),
+    debugSubscriptions: builder.query<DebugSubscriptionsResponse, void>({
+      query: () => '/subscription/debug',
+    }),
+    createTestSubscription: builder.mutation<CreateTestSubscriptionResponse, { plan: 'regular' | 'premium' }>({
+      query: (data) => ({
+        url: '/subscription/debug/create',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Subscriptions'],
+    }),
+    activateSubscription: builder.mutation<ActivateSubscriptionResponse, string>({
+      query: (id) => ({
+        url: `/subscription/activate/${id}`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['User', 'Subscriptions'],
     }),
     createCheckoutSession: builder.mutation<CheckoutSessionResponse, { plan: 'regular' | 'premium' }>({
       query: (data) => ({
@@ -111,14 +191,14 @@ export const subscriptionApi = baseApi.injectEndpoints({
         url: '/subscription/cancel',
         method: 'POST',
       }),
-      invalidatesTags: ['User'],
+      invalidatesTags: ['User', 'Subscriptions'],
     }),
     resumeSubscription: builder.mutation<ResumeSubscriptionResponse, void>({
       query: () => ({
         url: '/subscription/resume',
         method: 'POST',
       }),
-      invalidatesTags: ['User'],
+      invalidatesTags: ['User', 'Subscriptions'],
     }),
     getCreditHistory: builder.query<CreditHistoryResponse, void>({
       query: () => '/subscription/credits/history',
@@ -130,15 +210,27 @@ export const subscriptionApi = baseApi.injectEndpoints({
         body: data,
       }),
     }),
+    syncSubscriptions: builder.mutation<SyncSubscriptionsResponse, void>({
+      query: () => ({
+        url: '/subscription/sync',
+        method: 'POST',
+      }),
+      invalidatesTags: ['User', 'Subscriptions'],
+    }),
   }),
 });
 
 export const {
   useGetSubscriptionPlansQuery,
   useGetUserSubscriptionQuery,
+  useGetAllUserSubscriptionsQuery,
+  useDebugSubscriptionsQuery,
+  useCreateTestSubscriptionMutation,
+  useActivateSubscriptionMutation,
   useCreateCheckoutSessionMutation,
   useCancelSubscriptionMutation,
   useResumeSubscriptionMutation,
   useGetCreditHistoryQuery,
   usePurchaseCreditsMutation,
+  useSyncSubscriptionsMutation,
 } = subscriptionApi;

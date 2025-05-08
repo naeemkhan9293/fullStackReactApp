@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
-import { Loader2, CreditCard, Sparkles, ArrowRight, Check, Coins } from 'lucide-react';
+import { Loader2, CreditCard, Sparkles, ArrowRight, Check, Coins, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,12 @@ import {
   useGetSubscriptionPlansQuery,
   useCreateCheckoutSessionMutation,
   useGetUserSubscriptionQuery,
-  usePurchaseCreditsMutation
+  useGetAllUserSubscriptionsQuery,
+  useDebugSubscriptionsQuery,
+  useCreateTestSubscriptionMutation,
+  useActivateSubscriptionMutation,
+  usePurchaseCreditsMutation,
+  useSyncSubscriptionsMutation
 } from '@/store/api/subscriptionApi';
 
 const GetCreditsPage = () => {
@@ -32,11 +37,45 @@ const GetCreditsPage = () => {
   // Fetch user's current subscription
   const { data: userSubscription, isLoading: isLoadingSubscription } = useGetUserSubscriptionQuery();
 
+  // Fetch all user subscriptions
+  const { data: allSubscriptions, isLoading: isLoadingAllSubscriptions, refetch: refetchSubscriptions } = useGetAllUserSubscriptionsQuery();
+
+  // Fetch debug subscriptions data
+  const { data: debugData, refetch: refetchDebugData } = useDebugSubscriptionsQuery();
+
+  // Create test subscription mutation
+  const [createTestSubscription, { isLoading: isCreatingTestSubscription }] = useCreateTestSubscriptionMutation();
+
+  // Refetch subscriptions when the component mounts
+  useEffect(() => {
+    refetchSubscriptions();
+    refetchDebugData();
+  }, [refetchSubscriptions, refetchDebugData]);
+
+  // Debug subscriptions data
+  useEffect(() => {
+    if (allSubscriptions) {
+      console.log('Client-side subscriptions data:', allSubscriptions);
+    }
+    if (debugData) {
+      console.log('Debug subscriptions data:', debugData);
+    }
+  }, [allSubscriptions, debugData]);
+
   // Create checkout session mutation
   const [createCheckoutSession, { isLoading: isCreatingCheckout }] = useCreateCheckoutSessionMutation();
 
+  // Activate subscription mutation
+  const [activateSubscription, { isLoading: isActivatingSubscription }] = useActivateSubscriptionMutation();
+
   // Purchase credits mutation
   const [purchaseCredits, { isLoading: isPurchasingCredits }] = usePurchaseCreditsMutation();
+
+  // Sync subscriptions mutation
+  const [syncSubscriptions, { isLoading: isSyncing }] = useSyncSubscriptionsMutation();
+
+  // Track which subscription is being activated
+  const [activatingSubscriptionId, setActivatingSubscriptionId] = useState<string | null>(null);
 
   // Credit packages
   const CREDIT_PACKAGES = {
@@ -80,6 +119,32 @@ const GetCreditsPage = () => {
     }
   };
 
+  // Handle subscription activation
+  const handleActivateSubscription = async (subscriptionId: string) => {
+    if (!user) {
+      toast.error('You must be logged in to activate a subscription');
+      navigate('/auth/login');
+      return;
+    }
+
+    try {
+      setActivatingSubscriptionId(subscriptionId);
+      await activateSubscription(subscriptionId).unwrap();
+      toast.success('Subscription activated successfully');
+
+      // Refetch subscriptions after activation
+      refetchSubscriptions();
+      refetchDebugData();
+    } catch (error: any) {
+      console.error('Activation error:', error);
+      toast.error('Failed to activate subscription', {
+        description: error.data?.error || 'An error occurred. Please try again.',
+      });
+    } finally {
+      setActivatingSubscriptionId(null);
+    }
+  };
+
   // Handle credit package purchase
   const handlePurchaseCredits = async (creditPackage: 'small' | 'medium' | 'large') => {
     if (!user) {
@@ -104,7 +169,7 @@ const GetCreditsPage = () => {
   };
 
   // Loading state
-  if (isLoadingPlans || isLoadingSubscription) {
+  if (isLoadingPlans || isLoadingSubscription || isLoadingAllSubscriptions) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
@@ -158,9 +223,10 @@ const GetCreditsPage = () => {
       )}
 
       <Tabs defaultValue="credits" className="mb-8">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="credits">Credit Packages</TabsTrigger>
           <TabsTrigger value="subscription">Subscription Plans</TabsTrigger>
+          <TabsTrigger value="my-subscriptions">My Subscriptions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="credits" className="mt-6">
@@ -388,12 +454,189 @@ const GetCreditsPage = () => {
             )}
           </div>
         </TabsContent>
+
+        <TabsContent value="my-subscriptions" className="mt-6">
+          {allSubscriptions && allSubscriptions.data && allSubscriptions.data.length > 0 ? (
+            <div className="space-y-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                <h2 className="text-xl font-semibold text-blue-800 mb-2">Your Subscriptions</h2>
+                <p className="text-blue-700 mb-2">
+                  You have {allSubscriptions.count} subscription{allSubscriptions.count !== 1 ? 's' : ''}.
+                  You can activate any of your subscriptions to use it as your primary subscription.
+                </p>
+                <p className="text-sm text-blue-600 mb-2">
+                  The active subscription is the one that will be used for your account.
+                </p>
+
+                {/* Check if user has multiple subscription types */}
+                {allSubscriptions.count > 1 &&
+                  allSubscriptions.data.some(sub =>
+                    allSubscriptions.data.some(otherSub =>
+                      sub.id !== otherSub.id && sub.subscriptionType !== otherSub.subscriptionType
+                    )
+                  ) && (
+                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-yellow-800 text-sm font-medium">
+                        <span className="font-bold">Note:</span> You have subscriptions with different plans.
+                        Each subscription will be maintained separately, and you can choose which one to activate.
+                      </p>
+                    </div>
+                  )
+                }
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                {allSubscriptions.data.map((subscription) => (
+                  <Card
+                    key={subscription.id}
+                    className={`${subscription.isActive ? 'border-primary bg-primary/5' : ''}`}
+                  >
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle>{subscription.name}</CardTitle>
+                        <div className="flex gap-2">
+                          {subscription.isActive && (
+                            <Badge className="bg-primary">Active</Badge>
+                          )}
+                          <Badge variant="outline" className="capitalize">
+                            {subscription.subscriptionType}
+                          </Badge>
+                        </div>
+                      </div>
+                      <CardDescription>
+                        {subscription.subscriptionType === 'regular' ? 'Monthly' : 'Yearly'} Plan
+                        {subscription.stripeSubscriptionId.startsWith('test_') && ' (Test)'}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Status:</span>
+                          <span className="font-medium capitalize">{subscription.status}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Current Period Ends:</span>
+                          <span className="font-medium">
+                            {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {subscription.trialEnd && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Trial Ends:</span>
+                            <span className="font-medium">
+                              {new Date(subscription.trialEnd).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Auto Renew:</span>
+                          <span className="font-medium">
+                            {subscription.cancelAtPeriodEnd ? 'No' : 'Yes'}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      {subscription.isActive ? (
+                        <Button variant="outline" className="w-full" disabled>
+                          <Check className="mr-2 h-4 w-4" />
+                          Current Active Plan
+                        </Button>
+                      ) : (
+                        <Button
+                          className="w-full"
+                          onClick={() => handleActivateSubscription(subscription.id)}
+                          disabled={isActivatingSubscription}
+                        >
+                          {isActivatingSubscription && activatingSubscriptionId === subscription.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                          )}
+                          Activate This Plan
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12 border rounded-lg bg-muted/20">
+              <p className="text-muted-foreground mb-4">You don't have any subscriptions yet.</p>
+              <Button onClick={() => document.querySelector('[data-value="subscription"]')?.click()}>
+                View Subscription Plans
+              </Button>
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
 
-      <div className="mt-8 text-center">
+      <div className="mt-8 text-center space-y-4">
         <Button variant="outline" onClick={() => navigate(returnUrl)}>
           Return to Previous Page
         </Button>
+
+        <div className="flex justify-center space-x-4 flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              refetchSubscriptions();
+              refetchDebugData();
+              toast.info('Refreshing subscription data...');
+            }}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh Subscription Data
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={async () => {
+              try {
+                toast.info('Syncing subscriptions with Stripe...');
+                const result = await syncSubscriptions().unwrap();
+                toast.success(`Sync complete. Added ${result.newSubscriptions.length} subscriptions.`);
+                refetchSubscriptions();
+                refetchDebugData();
+              } catch (error: any) {
+                console.error('Error syncing subscriptions:', error);
+                toast.error('Failed to sync subscriptions with Stripe');
+              }
+            }}
+            disabled={isSyncing}
+          >
+            {isSyncing ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Sync with Stripe
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                await createTestSubscription({ plan: 'regular' }).unwrap();
+                toast.success('Test subscription created successfully');
+                refetchSubscriptions();
+                refetchDebugData();
+              } catch (error: any) {
+                console.error('Error creating test subscription:', error);
+                toast.error('Failed to create test subscription');
+              }
+            }}
+            disabled={isCreatingTestSubscription}
+          >
+            {isCreatingTestSubscription ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <CreditCard className="mr-2 h-4 w-4" />
+            )}
+            Create Test Subscription
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -2,10 +2,12 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export interface ISubscription extends Document {
   user: mongoose.Types.ObjectId;
+  name?: string; // Optional name for the subscription
   stripeCustomerId: string;
   stripeSubscriptionId: string;
   subscriptionType: 'regular' | 'premium';
   status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid' | 'incomplete' | 'incomplete_expired';
+  isActive: boolean; // Whether this subscription is the active one for the user
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
   cancelAtPeriodEnd: boolean;
@@ -22,6 +24,12 @@ const SubscriptionSchema = new Schema<ISubscription>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+    },
+    name: {
+      type: String,
+      default: function(this: any) {
+        return `${this.subscriptionType ? this.subscriptionType.charAt(0).toUpperCase() + this.subscriptionType.slice(1) : 'New'} Subscription`;
+      },
     },
     stripeCustomerId: {
       type: String,
@@ -40,6 +48,10 @@ const SubscriptionSchema = new Schema<ISubscription>(
       type: String,
       enum: ['active', 'trialing', 'past_due', 'canceled', 'unpaid', 'incomplete', 'incomplete_expired'],
       required: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
     currentPeriodStart: {
       type: Date,
