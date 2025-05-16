@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,27 +18,27 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 const CustomerWalletPage = () => {
   const [amount, setAmount] = useState<string>('');
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  
+
   // Get wallet data
   const { data: walletData, isLoading: isLoadingWallet } = useGetWalletQuery();
-  
+
   // Get wallet transactions
   const { data: transactionsData, isLoading: isLoadingTransactions } = useGetWalletTransactionsQuery();
-  
+
   // Add money mutation
   const [addMoney, { isLoading: isAddingMoney }] = useAddMoneyToWalletMutation();
 
   // Handle add money
   const handleAddMoney = async () => {
     const amountValue = parseFloat(amount);
-    
+
     if (isNaN(amountValue) || amountValue <= 0) {
       toast.error('Invalid amount', {
         description: 'Please enter a valid amount to add.',
       });
       return;
     }
-    
+
     try {
       const response = await addMoney({ amount: amountValue }).unwrap();
       setClientSecret(response.data.clientSecret);
@@ -99,7 +99,7 @@ const CustomerWalletPage = () => {
           </CardHeader>
           <CardContent className="text-center py-8">
             <p>Your wallet will be created automatically when you add money for the first time.</p>
-            <Button 
+            <Button
               className="mt-4"
               onClick={() => window.location.reload()}
             >
@@ -130,7 +130,7 @@ const CustomerWalletPage = () => {
             <h3 className="text-lg font-medium mb-2">Available Balance</h3>
             <p className="text-4xl font-bold">${wallet.balance.toFixed(2)}</p>
           </div>
-          
+
           {!clientSecret ? (
             <div className="mt-6">
               <Card>
@@ -152,8 +152,8 @@ const CustomerWalletPage = () => {
                           min="0.01"
                           step="0.01"
                         />
-                        <Button 
-                          onClick={handleAddMoney} 
+                        <Button
+                          onClick={handleAddMoney}
                           disabled={isAddingMoney || !amount || parseFloat(amount) <= 0}
                         >
                           {isAddingMoney ? (
@@ -183,8 +183,8 @@ const CustomerWalletPage = () => {
                 </CardHeader>
                 <CardContent>
                   <Elements stripe={stripePromise} options={{ clientSecret }}>
-                    <AddMoneyForm 
-                      clientSecret={clientSecret} 
+                    <AddMoneyForm
+                      clientSecret={clientSecret}
                       amount={parseFloat(amount)}
                       onSuccess={() => {
                         setClientSecret(null);

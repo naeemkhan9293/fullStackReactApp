@@ -21,9 +21,9 @@ const BookingPaymentPage = () => {
 
   // Get booking details
   const { data: bookingData, isLoading: isLoadingBooking, error: bookingError } = useGetBookingQuery(id || '');
-  
+
   // Create payment intent mutation
-  const [createPaymentIntent, { isLoading: isCreatingPayment }] = useCreatePaymentIntentMutation();
+  const [createPaymentIntent] = useCreatePaymentIntentMutation();
 
   useEffect(() => {
     // If booking is loaded and payment status is unpaid, create a payment intent
@@ -109,16 +109,16 @@ const BookingPaymentPage = () => {
             <div className="grid grid-cols-2 gap-2">
               <p className="text-muted-foreground">Service:</p>
               <p className="font-medium">{serviceName}</p>
-              
+
               <p className="text-muted-foreground">Option:</p>
               <p className="font-medium">{booking.serviceOption}</p>
-              
+
               <p className="text-muted-foreground">Date:</p>
               <p className="font-medium">{new Date(booking.date).toLocaleDateString()}</p>
-              
+
               <p className="text-muted-foreground">Time:</p>
               <p className="font-medium">{booking.timeSlot}</p>
-              
+
               <p className="text-muted-foreground">Total Amount:</p>
               <p className="font-medium text-lg">${booking.price.toFixed(2)}</p>
             </div>
@@ -126,9 +126,9 @@ const BookingPaymentPage = () => {
 
           {clientSecret ? (
             <Elements stripe={stripePromise} options={{ clientSecret }}>
-              <PaymentForm 
-                clientSecret={clientSecret} 
-                bookingId={id || ''} 
+              <PaymentForm
+                clientSecret={clientSecret}
+                bookingId={id || ''}
                 paymentId={paymentId || ''}
                 amount={booking.price}
               />

@@ -7,7 +7,7 @@ import {
 } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
-import { Loader2, CreditCard, AlertCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -49,7 +49,8 @@ const BookingPage = () => {
   const isCustomer = user?.role === "customer";
 
   // Get user subscription and credits
-  const { data: subscriptionData, isLoading: isLoadingSubscription } = useGetUserSubscriptionQuery();
+  // We're not using this data currently, but keeping the query for future use
+  useGetUserSubscriptionQuery();
 
   // State for form
   const [date, setDate] = useState<Date | undefined>(undefined);

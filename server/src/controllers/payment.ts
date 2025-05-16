@@ -7,6 +7,7 @@ import User from "../models/User";
 import Wallet from "../models/Wallet";
 import Transaction from "../models/Transaction";
 import stripe from "../config/stripe";
+import { runPaymentSyncManually } from "../services/scheduledTasks";
 
 // @desc    Create payment intent for booking
 // @route   POST /api/payments/create-intent
@@ -347,6 +348,27 @@ export const releasePayment = async (
       },
     });
   } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Manually synchronize payment statuses with Stripe
+// @route   POST /api/payments/sync
+// @access  Private (Admin only)
+export const syncPayments = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Run the payment sync task manually
+    const result = await runPaymentSyncManually();
+
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (err: any) {
     next(err);
   }
 };
