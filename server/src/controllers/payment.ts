@@ -140,7 +140,7 @@ export const handleWebhook = async (
   next: NextFunction
 ) => {
   const signature = req.headers['stripe-signature'] as string;
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const endpointSecret = process.env.STRIPE_PAYMENT_WEBHOOK_SECRET;
 
   let event;
 
