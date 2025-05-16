@@ -8,7 +8,7 @@ import connectDB from "./config/db";
 import errorHandler from "./middleware/error";
 import { requestLogger } from "./middleware/requestLogger";
 import { logger, stream } from "./config/logger";
-import { initScheduledTasks } from "./services/scheduledTasks";
+// import { initScheduledTasks } from "./services/scheduledTasks";
 
 // Load environment variables
 dotenv.config();
@@ -71,7 +71,7 @@ const server = app.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
 
   // Initialize scheduled tasks
-  initScheduledTasks();
+  // initScheduledTasks();
 });
 
 // Handle unhandled promise rejections
